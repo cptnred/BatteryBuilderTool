@@ -1,0 +1,52 @@
+{
+ "name": "18S2P_Fehler_Zellen_je_Lage",
+ "config": {
+  "cell": {
+   "id": "21700",
+   "label": "21700",
+   "diameter": 21.4,
+   "length": 70,
+   "capacityAh": 4.5,
+   "nominalV": 3.6,
+   "maxV": 4.2
+  },
+  "series": 18,
+  "parallel": 2,
+  "subPacks": 2,
+  "cellsPerRow": 7,
+  "stacking": "honeycomb",
+  "offsetSide": "L",
+  "spacing": {
+   "mode": "fishpaper",
+   "paperThickness": 0.3,
+   "gapRow": 1,
+   "gapLayer": 1,
+   "holderRim": 1
+  },
+  "booster": null,
+  "mainMinus": {
+   "end": "V",
+   "side": "R"
+  },
+  "mainPlus": {
+   "end": "H",
+   "side": "R"
+  },
+  "packGap": 0.5,
+  "nickelThickness": 0.2
+ },
+ "issues": [
+  {
+   "level": "error",
+   "msg": "Teilpack 1: 18 Zellen lassen sich nicht in volle Lagen à 7 aufteilen."
+  },
+  {
+   "level": "error",
+   "msg": "Teilpack 2: 18 Zellen lassen sich nicht in volle Lagen à 7 aufteilen."
+  },
+  {
+   "level": "warning",
+   "msg": "Wabe mit mehr als 2 Lagen: Verschaltung als Spalten-Serpentine – bitte Schweißplan prüfen."
+  }
+ ]
+}

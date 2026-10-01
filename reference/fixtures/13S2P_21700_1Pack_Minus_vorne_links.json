@@ -1,0 +1,429 @@
+{
+ "name": "13S2P_21700_1Pack_Minus_vorne_links",
+ "config": {
+  "cell": {
+   "id": "21700",
+   "label": "21700",
+   "diameter": 21.4,
+   "length": 70,
+   "capacityAh": 4.5,
+   "nominalV": 3.6,
+   "maxV": 4.2
+  },
+  "series": 13,
+  "parallel": 2,
+  "subPacks": 1,
+  "cellsPerRow": 13,
+  "stacking": "honeycomb",
+  "offsetSide": "L",
+  "spacing": {
+   "mode": "fishpaper",
+   "paperThickness": 0.3,
+   "gapRow": 1,
+   "gapLayer": 1,
+   "holderRim": 1
+  },
+  "booster": null,
+  "mainMinus": {
+   "end": "V",
+   "side": "L"
+  },
+  "mainPlus": {
+   "end": "H",
+   "side": "R"
+  },
+  "packGap": 0.5,
+  "nickelThickness": 0.2
+ },
+ "stats": {
+  "cells": 26,
+  "nominalV": 46.8,
+  "maxV": 54.6,
+  "capacityAh": 9,
+  "energyWh": 421
+ },
+ "chain": [
+  "P0"
+ ],
+ "cost": 1,
+ "issues": [],
+ "bridges": [],
+ "packs": [
+  {
+   "key": "P0",
+   "label": "Hauptpack",
+   "dir": "LR",
+   "startFace": "V",
+   "endFace": "H",
+   "startSide": "L",
+   "endSide": "R",
+   "layers": 2,
+   "perRow": 13,
+   "width": 292.65,
+   "height": 40.19,
+   "length": 70.4,
+   "groups": [
+    {
+     "s": 1,
+     "minusFace": "V",
+     "cells": [
+      "L1-0",
+      "L0-0"
+     ]
+    },
+    {
+     "s": 2,
+     "minusFace": "H",
+     "cells": [
+      "L1-1",
+      "L0-1"
+     ]
+    },
+    {
+     "s": 3,
+     "minusFace": "V",
+     "cells": [
+      "L1-2",
+      "L0-2"
+     ]
+    },
+    {
+     "s": 4,
+     "minusFace": "H",
+     "cells": [
+      "L1-3",
+      "L0-3"
+     ]
+    },
+    {
+     "s": 5,
+     "minusFace": "V",
+     "cells": [
+      "L1-4",
+      "L0-4"
+     ]
+    },
+    {
+     "s": 6,
+     "minusFace": "H",
+     "cells": [
+      "L1-5",
+      "L0-5"
+     ]
+    },
+    {
+     "s": 7,
+     "minusFace": "V",
+     "cells": [
+      "L1-6",
+      "L0-6"
+     ]
+    },
+    {
+     "s": 8,
+     "minusFace": "H",
+     "cells": [
+      "L1-7",
+      "L0-7"
+     ]
+    },
+    {
+     "s": 9,
+     "minusFace": "V",
+     "cells": [
+      "L1-8",
+      "L0-8"
+     ]
+    },
+    {
+     "s": 10,
+     "minusFace": "H",
+     "cells": [
+      "L1-9",
+      "L0-9"
+     ]
+    },
+    {
+     "s": 11,
+     "minusFace": "V",
+     "cells": [
+      "L1-10",
+      "L0-10"
+     ]
+    },
+    {
+     "s": 12,
+     "minusFace": "H",
+     "cells": [
+      "L1-11",
+      "L0-11"
+     ]
+    },
+    {
+     "s": 13,
+     "minusFace": "V",
+     "cells": [
+      "L1-12",
+      "L0-12"
+     ]
+    }
+   ],
+   "strips": [
+    {
+     "node": 0,
+     "face": "V",
+     "kind": "start",
+     "cells": [
+      "L1-0",
+      "L0-0"
+     ]
+    },
+    {
+     "node": 1,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-0",
+      "L0-0",
+      "L1-1",
+      "L0-1"
+     ]
+    },
+    {
+     "node": 2,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-1",
+      "L0-1",
+      "L1-2",
+      "L0-2"
+     ]
+    },
+    {
+     "node": 3,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-2",
+      "L0-2",
+      "L1-3",
+      "L0-3"
+     ]
+    },
+    {
+     "node": 4,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-3",
+      "L0-3",
+      "L1-4",
+      "L0-4"
+     ]
+    },
+    {
+     "node": 5,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-4",
+      "L0-4",
+      "L1-5",
+      "L0-5"
+     ]
+    },
+    {
+     "node": 6,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-5",
+      "L0-5",
+      "L1-6",
+      "L0-6"
+     ]
+    },
+    {
+     "node": 7,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-6",
+      "L0-6",
+      "L1-7",
+      "L0-7"
+     ]
+    },
+    {
+     "node": 8,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-7",
+      "L0-7",
+      "L1-8",
+      "L0-8"
+     ]
+    },
+    {
+     "node": 9,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-8",
+      "L0-8",
+      "L1-9",
+      "L0-9"
+     ]
+    },
+    {
+     "node": 10,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-9",
+      "L0-9",
+      "L1-10",
+      "L0-10"
+     ]
+    },
+    {
+     "node": 11,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-10",
+      "L0-10",
+      "L1-11",
+      "L0-11"
+     ]
+    },
+    {
+     "node": 12,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L1-11",
+      "L0-11",
+      "L1-12",
+      "L0-12"
+     ]
+    },
+    {
+     "node": 13,
+     "face": "H",
+     "kind": "end",
+     "cells": [
+      "L1-12",
+      "L0-12"
+     ]
+    }
+   ],
+   "outline": {
+    "straightPerimeter": 632.4,
+    "tuckedPerimeter": 904.5
+   }
+  }
+ ],
+ "taps": [
+  {
+   "node": 0,
+   "label": "B0 (Hauptminus)",
+   "spots": [
+    "P0/V/start"
+   ]
+  },
+  {
+   "node": 1,
+   "label": "B1",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 2,
+   "label": "B2",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 3,
+   "label": "B3",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 4,
+   "label": "B4",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 5,
+   "label": "B5",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 6,
+   "label": "B6",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 7,
+   "label": "B7",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 8,
+   "label": "B8",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 9,
+   "label": "B9",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 10,
+   "label": "B10",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 11,
+   "label": "B11",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 12,
+   "label": "B12",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 13,
+   "label": "B13 (Hauptplus)",
+   "spots": [
+    "P0/H/end"
+   ]
+  }
+ ]
+}
