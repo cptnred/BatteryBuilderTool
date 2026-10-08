@@ -291,6 +291,55 @@ h3 {
   display: grid;
   gap: 0.6rem;
 }
+.section__badge {
+  font-family: var(--font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.45rem;
+  margin-right: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.section__aside {
+  text-align: right;
+}
+.section--error > summary > span:first-of-type::after {
+  content: ' ✖';
+  color: var(--error);
+}
+.row__fields {
+  display: grid;
+  gap: 0.6rem;
+}
+.linkbtn {
+  justify-self: start;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.basics {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.6rem 0 0.8rem;
+}
+.aufbau {
+  margin: 0;
+  padding: 0.7rem 0 0.2rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-cond);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 
 .field {
   display: grid;
@@ -424,6 +473,13 @@ h3 {
   outline: 2px solid var(--focus);
   outline-offset: -3px;
 }
+.choice:disabled .seg {
+  opacity: 0.55;
+}
+.choice:disabled .seg__opt,
+.choice:disabled .seg__opt input {
+  cursor: not-allowed;
+}
 
 .check label,
 .check-inline {
@@ -465,6 +521,16 @@ h3 {
 }
 .pol--plus {
   background: var(--plus);
+}
+/* Polarität im Fließtext: Symbol und Farbe */
+.pol-text {
+  font-weight: 700;
+}
+.pol-text--minus {
+  color: var(--minus-ink);
+}
+.pol-text--plus {
+  color: var(--plus-ink);
 }
 .note {
   font-size: 0.85rem;

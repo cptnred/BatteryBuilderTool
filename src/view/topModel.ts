@@ -9,6 +9,7 @@
  *    0       Teilpacks …
  */
 import type { Face, Layout, Side, SubPack } from '../core';
+import { widestLayerCells } from './layers';
 
 export type TopAlign = 'right' | 'left' | 'center';
 
@@ -20,7 +21,7 @@ export interface TopPack {
   y: number;
   w: number;
   l: number;
-  /** Trennlinien der Zellen der unteren Lage (x) */
+  /** Trennlinien der Zellen der größten Lage (x) */
   cellLines: number[];
   arrow: { x1: number; x2: number; y: number };
 }
@@ -77,9 +78,10 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
 
   const R = cfg.cell.diameter / 2;
   const toTop = (p: SubPack, x: number, y: number): TopPack => {
-    const bottom = p.cells.filter((c) => c.layer === 0).sort((a, b) => a.x - b.x);
-    const cellLines = bottom.slice(0, -1).map((c) => x + c.x + layout.pitches.px / 2);
-    if (bottom.length) cellLines.unshift(x + bottom[0].x - R);
+    // größte Lage: bei unvollständiger Lage ist das nicht immer Lage 0 (Plan 06 §6)
+    const wide = widestLayerCells(p);
+    const cellLines = wide.slice(0, -1).map((c) => x + c.x + layout.pitches.px / 2);
+    if (wide.length) cellLines.unshift(x + wide[0].x - R);
     const a0 = x + p.width * 0.85;
     const a1 = x + p.width * 0.15;
     const ay = y + p.length * 0.62;

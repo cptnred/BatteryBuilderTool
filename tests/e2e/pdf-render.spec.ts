@@ -87,7 +87,7 @@ test('PDF A4 gekachelt: Kontrollquadrat 50 mm auf dem gerenderten Bild', async (
 test('PDF eingebogen + Umschlag + A3', async ({ page }) => {
   await page.addInitScript(() => localStorage.clear());
   const pdf = await downloadPdf(page, async () => {
-    await page.locator('details.section > summary', { hasText: 'Fishpaper' }).click(); // Abschnitt aufklappen
+    await page.getByTestId('row-fishpaper').locator('summary').click(); // Zeile „Zuschnitt“ aufklappen
     const sec = page.locator('details.section', { hasText: 'Umriss Stirnseiten' });
     await sec.getByRole('radio', { name: 'eingebogen' }).first().check();
     await sec.getByRole('radio', { name: 'eingebogen' }).nth(1).check();
@@ -102,7 +102,7 @@ test('PDF eingebogen + Umschlag + A3', async ({ page }) => {
 test('Laser: PDF und SVG eine Seite, Ebenen farbig, eingebogen mit Umschlag', async ({ page }) => {
   await page.addInitScript(() => localStorage.clear());
   const setup = async () => {
-    await page.locator('details.section > summary', { hasText: 'Fishpaper' }).click();
+    await page.getByTestId('row-fishpaper').locator('summary').click();
     const sec = page.locator('details.section', { hasText: 'Umriss Stirnseiten' });
     await sec.getByRole('radio', { name: 'eingebogen' }).first().check();
     await sec.getByRole('radio', { name: 'eingebogen' }).nth(1).check();

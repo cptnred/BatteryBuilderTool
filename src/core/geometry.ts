@@ -23,8 +23,32 @@ export function pitches(cfg: BatteryConfig): Pitches {
   return { px, pz, off, diag, gapRow, gapLayer };
 }
 
-/** Zellmittelpunkte eines Teilpacks im Querschnitt (x,z) plus Außenmaße. */
-export function placeCells(cfg: BatteryConfig, perRow: number, layers: number): { cells: Cell[]; width: number; height: number } {
+export type LayerPlan = 'full' | 'short';
+
+/**
+ * Wie n Zellen bei perRow Zellen je Lage liegen (Plan 06 §3.1):
+ *   'full'  = volle Lagen
+ *   'short' = Wabe mit genau 2 Lagen, eine davon eine Zelle kürzer (n = 2·perRow − 1, n ≥ 3)
+ *   null    = geht nicht auf
+ */
+export function layerPlan(cfg: BatteryConfig, n: number, perRow: number): LayerPlan | null {
+  if (n % perRow === 0) return 'full';
+  if (cfg.stacking === 'honeycomb' && n >= 3 && n === 2 * perRow - 1) return 'short';
+  return null;
+}
+
+/**
+ * Zellmittelpunkte eines Teilpacks im Querschnitt (x,z) plus Außenmaße.
+ * count nennt die Zellzahl; weicht sie von perRow·layers ab und ist layerPlan 'short',
+ * wird nach Plan 06 §3.2 platziert.
+ */
+export function placeCells(
+  cfg: BatteryConfig,
+  perRow: number,
+  layers: number,
+  count: number = perRow * layers,
+): { cells: Cell[]; width: number; height: number } {
+  if (count !== perRow * layers && layerPlan(cfg, count, perRow) === 'short') return placeShort(cfg, perRow);
   const D = cfg.cell.diameter;
   const R = D / 2;
   const p = pitches(cfg);
@@ -42,6 +66,23 @@ export function placeCells(cfg: BatteryConfig, perRow: number, layers: number): 
   const width = (perRow - 1) * p.px + (honey ? p.off : 0) + D;
   const height = (layers - 1) * p.pz + D;
   return { cells, width, height };
+}
+
+/** Große Lage mit m Zellen, kleine Lage mit m − 1 Zellen in den Mulden (Plan 06 §3.2). */
+function placeShort(cfg: BatteryConfig, m: number): { cells: Cell[]; width: number; height: number } {
+  const D = cfg.cell.diameter;
+  const R = D / 2;
+  const p = pitches(cfg);
+  const wideTop = (cfg.wideLayer ?? 'top') === 'top';
+  const cells: Cell[] = [];
+  for (let l = 0; l < 2; l++) {
+    const wide = (l === 1) === wideTop;
+    const n = wide ? m : m - 1;
+    for (let i = 0; i < n; i++) {
+      cells.push({ id: `L${l}-${i}`, layer: l, index: i, x: R + (wide ? 0 : p.off) + i * p.px, z: R + l * p.pz });
+    }
+  }
+  return { cells, width: (m - 1) * p.px + D, height: p.pz + D };
 }
 
 /** Alles bis zu diesem Mittenabstand gilt als "benachbart" (Fachkonzept §4.6). */

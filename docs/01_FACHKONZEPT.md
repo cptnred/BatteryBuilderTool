@@ -58,7 +58,12 @@ Länge   = Zelllänge + 2·Nickelstärke
   Das ist der Standard. [BESTÄTIGT]
 - **Alle Teilpacks werden identisch gestapelt.** Die Schrägen laufen dadurch in vorderem und hinterem Pack in dieselbe Richtung,
   und Vorder- bzw. Rückansichten von Pack A und Pack B sehen in Bezug auf die Zelllagerung gleich aus. [BESTÄTIGT]
-- Zellzahl je Teilpack ÷ Zellen je Lage muss aufgehen. Sonst wird ein Fehler angezeigt (keine halben Lagen in v1).
+- Zellzahl je Teilpack ÷ Zellen je Lage muss aufgehen. Sonst wird ein Fehler angezeigt.
+- **Ausnahme – unvollständige Lage:** Bei Wabe mit genau 2 Lagen darf eine Lage eine Zelle kürzer sein
+  (n = 2·m − 1, n ≥ 3, z. B. 15 = 8 + 7). Die kürzere Lage sitzt in den Mulden der größeren:
+  große Lage x = R + i·px, kleine Lage x = R + px/2 + i·px, Breite = (m−1)·px + D. Der Wabenversatz hat dann
+  keine Wirkung. Welche Lage die größere ist, ist wählbar (Standard: oben) und für alle Teilpacks gleich.
+  Anfang und Ende des Teilpacks liegen beide auf der größeren Lage. [BESTÄTIGT]
 
 ## 4. Verschaltung innerhalb eines Teilpacks
 
@@ -111,6 +116,15 @@ Kosten ≥ 490 bedeuten eine Warnung: „Anschluss nicht direkt erreichbar, wird
   als Kabel links von A-vorne nach B-hinten. Die UI zeigt dazu einen Hinweis.
 - Bei nur einem Teilpack mit gerader Gruppenzahl liegen Plus und Minus zwangsläufig auf derselben Stirnseite. Das führt zu einer Warnung.
 
+**Brückenlage wählen** (2 Teilpacks, gerade Gruppenzahl im Hauptpack):
+- Hauptminus und Hauptplus liegen immer außen. [BESTÄTIGT]
+- Die Brückenlage folgt deshalb allein aus der Aufteilung: beide Teilpacks ungerade → innen, sonst außen.
+- Standard ist die gleichmäßige Aufteilung. Wählt der Nutzer die andere Lage, wird (h+1) + (h−1) aufgeteilt
+  (h = halbe Gruppenzahl), der größere Teilpack liegt vorne: 18S → 10 + 8 (außen), 20S → 11 + 9 (innen),
+  30S → 16 + 14 (außen), 32S → 17 + 15 (innen).
+- Bei 2P ist die gleichmäßige Aufteilung mit Brücke außen der Normalfall, weil ungleiche Teilpacks dort zwei Zellen
+  unterschiedlich breit sind. Bei 1P darf die Brücke innen liegen (30S1P = 15 + 15). [BESTÄTIGT]
+
 ## 6. Splitpack / Booster
 
 - Eingabe: Splitpack ja/nein, **S des Boosters** (z. B. 2) und Zellen je Lage des Boosters.
@@ -145,3 +159,7 @@ Kosten ≥ 490 bedeuten eine Warnung: „Anschluss nicht direkt erreichbar, wird
 
 Die Tests im Projekt müssen gegen diese Fixtures laufen.
 Die Fixtures für **18S2P, 32S1P, 20S2P und 20S2P-Split** entsprechen exakt den vom Nutzer bestätigten Skizzen.
+
+`30S1P_21700.json` stammt aus `src/core`, nicht aus `reference/demo.ts`: Die Referenz kennt keine unvollständigen
+Lagen. Der Nutzer hat das Ergebnis am Screenshot `docs/screenshots/30S1P.png` bestätigt (beide Teilpacks 8 oben + 7 unten,
+Minus oben rechts vorne, Plus oben rechts hinten, Brücke B15 innen links). [BESTÄTIGT]

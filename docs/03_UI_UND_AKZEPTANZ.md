@@ -19,6 +19,10 @@ Sprache der Oberfläche: **Deutsch**. Einheiten: mm, V, Ah, Wh. Dezimaltrennzeic
 │ Fishpaper     │                                                               │
 └───────────────┴───────────────────────────────────────────────────────────────┘
 ```
+Seit Plan 06 (`docs/06_PLAN_BRUECKE_UND_BEDIENUNG.md` §5) zeigt die Konfiguration oben nur Schnellwahl, Zelle, S, P und
+Brücke. Darunter steht die Liste „Aufbau“ (Teilpacks, Lagen, Stapelung, Anschlüsse, Abstände, Zellmaße, Splitpack,
+Zuschnitt) mit aufklappbaren Zeilen.
+
 Mobil: Die Konfiguration wird zur ausklappbaren Leiste oben, die Ansichten stehen untereinander, ohne horizontales Scrollen der Seite. Die SVGs skalieren.
 
 ## 2. Eingaben (mit Standardwerten = 18S2P / 21700)
@@ -33,7 +37,9 @@ Mobil: Die Konfiguration wird zur ausklappbaren Leiste oben, die Ansichten stehe
 | | P | 2 | 1–6 |
 | | Teilpacks im Hauptpack | 2 | 1–4 („vorne + hinten“ = 2) |
 | | S je Teilpack | automatisch 9 + 9 | optional manuell (Summe muss passen) |
-| | Zellen je Lage | 9 | optional je Teilpack; Lagen = Zellen / Zellen je Lage (wird angezeigt) |
+| | Brücke | wie gleichmäßige Aufteilung | innen / außen; nur bei 2 Teilpacks und gerader Gruppenzahl; die andere Lage teilt (h+1) + (h−1) auf |
+| | Lagen | 2 | 1–6; Zellen je Lage werden berechnet (wird angezeigt); optional „Zellen je Lage manuell“ und je Teilpack |
+| | Größere Lage | oben | oben / unten; nur bei unvollständiger Lage (Wabe, 2 Lagen, ungerade Zellzahl) |
 | Anordnung | Stapelung | Wabe | Wabe (versetzt) / Raster (Zellen parallel übereinander) |
 | | Wabenversatz | nach links | links / rechts (obere Lage gegenüber unterer, globale Seite) – nur bei Wabe |
 | Abstände | Modus | nur Fishpaper (0,3 mm) | nur Fishpaper / mit Abstandhalter |
@@ -48,13 +54,13 @@ Mobil: Die Konfiguration wird zur ausklappbaren Leiste oben, die Ansichten stehe
 | | Booster-Position | am Hauptplus | am Hauptplus / am Hauptminus |
 | Fishpaper | siehe `02_FISHPAPER_EXPORT.md` | | |
 
-Schnellwahl-Buttons (Presets): **18S2P**, **32S1P**, **20S2P**, **20S2P Splitpack (18S2P + 2S2P)** (je 21700) sowie „Zurücksetzen“.
+Schnellwahl-Buttons (Presets): **18S2P**, **20S2P**, **20S2P Splitpack (18S2P + 2S2P)**, **30S1P**, **32S1P** sowie „Zurücksetzen“.
 
 Jede Änderung wird sofort neu berechnet (kein „Berechnen“-Button). Ungültige Eingaben werden am Feld markiert. Die Ansichten zeigen dann den letzten gültigen Stand, ausgegraut, mit Fehlermeldung.
 
 ## 3. Ansichten (Tab „Verschaltung“)
 
-- **Draufsicht** (VORNE oben): Teilpacks als Rechtecke mit Zelllinien der unteren Lage und einem Pfeil für die Serienrichtung.
+- **Draufsicht** (VORNE oben): Teilpacks als Rechtecke mit Zelllinien der größten Lage (bei vollen Lagen die untere) und einem Pfeil für die Serienrichtung.
   Dazu Hauptminus (blau) und Hauptplus (rot) als Fahnen an der richtigen Ecke,
   Brücke (orange): innen = kurzer Balken zwischen den Packs, außen = Kabel um die Seite.
   Der Booster erscheint als gestrichelter Block mit Kabel. Maße stehen an den Kanten (B, L, Gesamtlänge).
@@ -88,7 +94,7 @@ Jede Änderung wird sofort neu berechnet (kein „Berechnen“-Button). Ungülti
 
 1. `npm run dev` startet; die Startseite zeigt **18S2P / 21700 / 2 Teilpacks à 9 je Lage / Wabe links / Minus vorne rechts / Plus hinten rechts**.
    Die Ansichten stimmen inhaltlich mit `reference/bestaetigte-skizzen/Skizze_18S2P.png` überein (Polarität, Gruppennummern, Bk-Labels, Brücke innen links).
-2. Die Presets 32S1P, 20S2P und 20S2P-Split reproduzieren die jeweiligen bestätigten Skizzen.
+2. Die Presets 32S1P, 20S2P und 20S2P-Split reproduzieren die jeweiligen bestätigten Skizzen. 30S1P entspricht der bestätigten Fixture `30S1P_21700`.
 3. `npm test` ist grün:
    - `reference/selftest.ts` als Vitest portiert,
    - Fixture-Vergleich für **alle** `reference/fixtures/*.json` (Gruppen, Streifen, Brücken, Kette, Umfänge ±0,1 mm, Fehler/Hinweise),
@@ -100,4 +106,4 @@ Jede Änderung wird sofort neu berechnet (kein „Berechnen“-Button). Ungülti
 8. Ein Hauptplus-/Minus-Wunsch, der nicht erfüllbar ist, erzeugt eine verständliche Warnung und stürzt nie ab.
 9. Das PDF ist gedruckt maßhaltig (Kontrollquadrat), die Umwicklung wird gekachelt, die Stirnseiten sind korrekt gespiegelt und beschriftet.
 10. Mobil (375 px Breite) ist alles bedienbar, ohne horizontales Scrollen der Seite.
-11. Screenshots der vier Presets (Playwright) liegen unter `docs/screenshots/`. Claude Code hat sie selbst mit den bestätigten Skizzen verglichen.
+11. Screenshots der fünf Presets (Playwright) liegen unter `docs/screenshots/`. Claude Code hat die vier mit bestätigter Skizze selbst mit den Skizzen verglichen. Für 30S1P gibt es keine Skizze; dort hat der Nutzer den Screenshot `docs/screenshots/30S1P.png` bestätigt.

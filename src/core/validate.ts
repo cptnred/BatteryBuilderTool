@@ -1,4 +1,4 @@
-import { adjacency, cellDistance } from './geometry';
+import { adjacency, cellDistance, layerPlan } from './geometry';
 import type { BatteryConfig, Cell, Issue, Layout } from './types';
 
 export const LIMITS = {
@@ -74,13 +74,13 @@ export function validateConfig(cfg: BatteryConfig): Issue[] {
     out.push({ level: 'error', msg: `Aufteilung ${split.join('+')} ergibt nicht ${mainS}S (Hauptpack).` });
   split.forEach((s, i) => {
     const pr = perRowOf(cfg, i);
-    if ((s * cfg.parallel) % pr !== 0)
+    if (layerPlan(cfg, s * cfg.parallel, pr) === null)
       out.push({
         level: 'error',
         msg: `Teilpack ${i + 1}: ${s * cfg.parallel} Zellen lassen sich nicht in volle Lagen à ${pr} aufteilen.`,
       });
   });
-  if (cfg.booster && (cfg.booster.series * cfg.parallel) % cfg.booster.cellsPerRow !== 0)
+  if (cfg.booster && layerPlan(cfg, cfg.booster.series * cfg.parallel, cfg.booster.cellsPerRow) === null)
     out.push({ level: 'error', msg: 'Booster: Zellzahl passt nicht zu Zellen je Lage.' });
   if (cfg.subPacks > 1 && cfg.mainMinus.end === cfg.mainPlus.end)
     out.push({

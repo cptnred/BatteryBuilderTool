@@ -8,11 +8,14 @@ import {
   DEFAULT_CONFIG,
   cellSpecFromDatasheet,
   datasheetById,
+  layerPlan,
   perRowOf,
   seriesSplit,
   subPackLabel,
 } from '../core';
 import type { FishpaperOptions } from '../fishpaper/types';
+import type { BridgeChoice, BridgePos, RowPlan } from './derive';
+import { LAYER_LIMITS, autoRows, bridgeState } from './derive';
 
 export type { FishpaperOptions };
 
@@ -37,11 +40,22 @@ export interface ConfigState {
   series: number;
   parallel: number;
   subPacks: number;
+  /** Brückenlage: bestimmt bei 2 Teilpacks die automatische Aufteilung (Plan 06 §4.2) */
+  bridge: BridgeChoice;
   seriesSplitManual: boolean;
+  /** wirksame Aufteilung vorne -> hinten */
   seriesSplit: number[];
+  /** Lagen je Teilpack; daraus folgen die Zellen je Lage (Plan 06 §4.3) */
+  layers: number;
+  /** „Zellen je Lage manuell“: cellsPerRow gilt für alle Teilpacks statt der Ableitung aus layers */
+  cellsPerRowManual: boolean;
+  /** wirksame Zellen je Lage des vordersten Teilpacks bzw. der manuelle Wert */
   cellsPerRow: number;
   cellsPerRowSplitManual: boolean;
+  /** wirksame Zellen je Lage je Teilpack */
   cellsPerRowSplit: number[];
+  /** unvollständige Lage: größere Lage oben oder unten */
+  wideLayer: 'top' | 'bottom';
   stacking: Stacking;
   offsetSide: Side;
   spacingMode: SpacingMode;
@@ -87,11 +101,15 @@ export const DEFAULT_STATE: ConfigState = {
   series: DEFAULT_CONFIG.series,
   parallel: DEFAULT_CONFIG.parallel,
   subPacks: DEFAULT_CONFIG.subPacks,
+  bridge: 'auto',
   seriesSplitManual: false,
   seriesSplit: [9, 9],
+  layers: 2,
+  cellsPerRowManual: false,
   cellsPerRow: DEFAULT_CONFIG.cellsPerRow,
   cellsPerRowSplitManual: false,
   cellsPerRowSplit: [9, 9],
+  wideLayer: 'top',
   stacking: DEFAULT_CONFIG.stacking,
   offsetSide: DEFAULT_CONFIG.offsetSide,
   spacingMode: 'fishpaper',
@@ -111,17 +129,19 @@ export const DEFAULT_STATE: ConfigState = {
   export: { pageFormat: 'a4', oversize: 'tile' },
 };
 
-export type PresetId = '18S2P' | '32S1P' | '20S2P' | '20S2P-split';
+export type PresetId = '18S2P' | '20S2P' | '20S2P-split' | '30S1P' | '32S1P';
 
+/** Presets bestehen nur aus S, P und ggf. Booster; alles andere wird abgeleitet (Plan 06 §4.5). */
 export const PRESETS: { id: PresetId; label: string; patch: Partial<ConfigState> }[] = [
   { id: '18S2P', label: '18S2P', patch: {} },
-  { id: '32S1P', label: '32S1P', patch: { series: 32, parallel: 1, cellsPerRow: 8 } },
-  { id: '20S2P', label: '20S2P', patch: { series: 20, cellsPerRow: 10 } },
+  { id: '20S2P', label: '20S2P', patch: { series: 20 } },
   {
     id: '20S2P-split',
     label: '20S2P Splitpack (18S2P + 2S2P)',
     patch: { series: 20, boosterEnabled: true, booster: { series: 2, position: 'plus' } },
   },
+  { id: '30S1P', label: '30S1P', patch: { series: 30, parallel: 1 } },
+  { id: '32S1P', label: '32S1P', patch: { series: 32, parallel: 1 } },
 ];
 
 /** Datenblatt der gewählten Zelle; null bei eigener Zelle. */
@@ -134,12 +154,25 @@ export function mainSeries(s: ConfigState): number {
   return s.series - (s.boosterEnabled ? s.booster.series : 0);
 }
 
-/** Gleichmäßige Aufteilung, Rest an die vorderen Packs (wie Fachkonzept §6). */
-export function evenSplit(total: number, n: number): number[] {
-  const base = Math.floor(total / n);
-  const rest = total - base * n;
-  return Array.from({ length: n }, (_, i) => base + (i < rest ? 1 : 0));
+/** Wirksame Aufteilung vorne -> hinten: manuell oder aus der Brückenwahl (Plan 06 §4.2). */
+export function effectiveSplit(s: ConfigState): number[] {
+  return s.seriesSplitManual ? s.seriesSplit.slice(0, s.subPacks) : bridgeState(mainSeries(s), s.subPacks, s.bridge).split;
 }
+
+/**
+ * Zellen je Lage je Teilpack. Im automatischen Fall samt Meldung, wenn die Zellzahl nicht auf die Lagen passt
+ * (Plan 06 §4.3); bei manuellen Werten prüft der Kern.
+ */
+export function rowInfo(s: ConfigState): RowPlan {
+  const split = effectiveSplit(s);
+  if (s.cellsPerRowSplitManual) return { perRow: s.cellsPerRowSplit.slice(0, s.subPacks), error: null };
+  if (s.cellsPerRowManual) return { perRow: split.map(() => s.cellsPerRow), error: null };
+  return autoRows(split, s.parallel, s.layers, s.stacking);
+}
+
+/** Folgefehler des Kerns, die bei einer Lagen-Fehlermeldung (rowInfo) nichts Neues sagen. */
+export const isRowPlanIssue = (msg: string) =>
+  msg.includes('volle Lagen à') || msg === 'Zellen je Lage muss eine ganze Zahl ≥ 1 sein.';
 
 const nz = (v: number | null) => (v === null ? NaN : v);
 
@@ -162,12 +195,18 @@ export function boosterRows(cfg: BatteryConfig, booster: BoosterInput): BoosterR
   const n = cfg.subPacks;
   const chain = cfg.mainMinus.end === 'V' ? [...Array(n).keys()] : [...Array(n).keys()].reverse();
   const pos = booster.position === 'plus' ? chain[n - 1] : chain[0];
-  const layers = (seriesSplit(cfg)[pos] * cfg.parallel) / perRowOf(cfg, pos);
-  const cells = booster.series * cfg.parallel;
+  const packCells = seriesSplit(cfg)[pos] * cfg.parallel;
+  const perRow = perRowOf(cfg, pos);
   const packKey = `P${pos}`;
   const packLabel = subPackLabel(n, pos);
-  if (!Number.isInteger(layers) || layers < 1) return { layers, packKey, packLabel, cellsPerRow: null, error: null };
-  if (cells % layers !== 0)
+  // Teilpack selbst geht nicht auf oder hat keine Zellen -> dessen Fehlermeldung reicht
+  if (packCells < 1 || layerPlan(cfg, packCells, perRow) === null)
+    return { layers: packCells / perRow, packKey, packLabel, cellsPerRow: null, error: null };
+  const layers = Math.ceil(packCells / perRow);
+  const cells = booster.series * cfg.parallel;
+  const cellsPerRow = Math.ceil(cells / layers);
+  // gültig: volle Lagen oder unvollständige Lage (Plan 06 §3.1), jeweils mit genau dieser Lagenzahl
+  if (layerPlan(cfg, cells, cellsPerRow) === null || Math.ceil(cells / cellsPerRow) !== layers)
     return {
       layers,
       packKey,
@@ -175,7 +214,7 @@ export function boosterRows(cfg: BatteryConfig, booster: BoosterInput): BoosterR
       cellsPerRow: null,
       error: `Booster: ${cells} Zellen (${booster.series}S${cfg.parallel}P) lassen sich nicht auf ${layers} Lagen aufteilen (gleiche Lagenzahl wie der Teilpack, an dem der Booster hängt).`,
     };
-  return { layers, packKey, packLabel, cellsPerRow: cells / layers, error: null };
+  return { layers, packKey, packLabel, cellsPerRow, error: null };
 }
 
 /** Übersetzt den Formularzustand in die Fachkonfiguration. */
@@ -201,8 +240,18 @@ export function toBatteryConfig(s: ConfigState): BatteryConfig {
     packGap: s.packGap,
     nickelThickness: s.nickelThickness,
   };
+  // Aufteilung und Zellen je Lage nur mitgeben, wenn sie vom Standard des Kerns abweichen (Plan 06 §4.4)
+  const bridge = bridgeState(mainSeries(s), s.subPacks, s.bridge);
   if (s.seriesSplitManual) cfg.seriesSplit = s.seriesSplit.slice(0, s.subPacks);
+  else if (bridge.uneven) cfg.seriesSplit = bridge.split;
   if (s.cellsPerRowSplitManual) cfg.cellsPerRowSplit = s.cellsPerRowSplit.slice(0, s.subPacks);
+  else if (!s.cellsPerRowManual) {
+    const rows = rowInfo(s);
+    // geht nicht auf -> NaN: der Kern liefert kein Layout, die Meldung kommt aus rowInfo()
+    cfg.cellsPerRow = rows.error ? NaN : rows.perRow[0];
+    if (!rows.error && rows.perRow.some((m) => m !== rows.perRow[0])) cfg.cellsPerRowSplit = rows.perRow;
+  }
+  if (s.wideLayer === 'bottom') cfg.wideLayer = 'bottom';
   if (s.boosterEnabled) {
     // Hauptpack-Aufteilung hängt nur von booster.series ab; Zellen je Lage folgen aus der Lagenzahl
     const withBooster = { ...cfg, booster: { ...s.booster, cellsPerRow: 1 } };
@@ -224,6 +273,7 @@ export const isBoosterRowIssue = (msg: string) => msg.startsWith('Booster: Zell'
 
 export type Action =
   | { type: 'set'; patch: Partial<ConfigState> }
+  | { type: 'bridge'; pos: BridgePos }
   | { type: 'cellType'; cellType: CellType }
   | { type: 'spacingMode'; mode: SpacingMode }
   | { type: 'fishpaper'; patch: Partial<FishpaperOptions> }
@@ -238,20 +288,27 @@ export function customCell(cell: CellSpec): CellSpec {
   return { ...cell, id: 'custom', label: CUSTOM_CELL_LABEL };
 }
 
-/** Hält abhängige Felder konsistent (Länge der Aufteilungen usw.). */
+/** Hält abhängige Felder konsistent: Aufteilung (Plan 06 §4.2) und Zellen je Lage (§4.3). */
 function normalize(s: ConfigState): ConfigState {
   const n = s.subPacks;
-  let { seriesSplit, cellsPerRowSplit } = s;
-  if (!s.seriesSplitManual || seriesSplit.length !== n) seriesSplit = evenSplit(mainSeries(s), n);
+  let { seriesSplit, cellsPerRow, cellsPerRowSplit } = s;
+  if (!s.seriesSplitManual || seriesSplit.length !== n) seriesSplit = bridgeState(mainSeries(s), n, s.bridge).split;
+  const auto = autoRows(seriesSplit, s.parallel, s.layers, s.stacking).perRow;
+  if (!s.cellsPerRowManual && !s.cellsPerRowSplitManual && auto[0] >= 1) cellsPerRow = auto[0];
   if (!s.cellsPerRowSplitManual || cellsPerRowSplit.length !== n)
-    cellsPerRowSplit = Array.from({ length: n }, () => s.cellsPerRow);
-  return { ...s, seriesSplit, cellsPerRowSplit };
+    cellsPerRowSplit = s.cellsPerRowManual ? Array.from({ length: n }, () => cellsPerRow) : auto;
+  return { ...s, seriesSplit, cellsPerRow, cellsPerRowSplit };
 }
 
 export function reducer(state: ConfigState, action: Action): ConfigState {
   switch (action.type) {
     case 'set':
       return normalize({ ...state, ...action.patch });
+    case 'bridge': {
+      // Klick auf die natürliche Lage = automatisch, auf die andere = ausdrücklich (Plan 06 §4.2)
+      const natural = bridgeState(mainSeries(state), state.subPacks, 'auto').natural;
+      return normalize({ ...state, bridge: action.pos === natural ? 'auto' : action.pos });
+    }
     case 'cellType': {
       const ds = datasheetById(action.cellType);
       if (!ds) return { ...state, cellType: 'custom', cell: customCell(state.cell) };
@@ -343,6 +400,10 @@ export function mergeWithDefaults(raw: unknown): ConfigState {
   const s: ConfigState = {
     ...top,
     ...loadCell(top.cellType, obj(r.cell, d.cell)),
+    bridge: oneOf(top.bridge, ['auto', 'inner', 'outer'], d.bridge),
+    wideLayer: oneOf(top.wideLayer, ['top', 'bottom'], d.wideLayer),
+    layers:
+      Number.isInteger(top.layers) && top.layers >= LAYER_LIMITS.min && top.layers <= LAYER_LIMITS.max ? top.layers : d.layers,
     seriesSplit: numArr(r.seriesSplit, d.seriesSplit),
     cellsPerRowSplit: numArr(r.cellsPerRowSplit, d.cellsPerRowSplit),
     stacking: oneOf(top.stacking, ['honeycomb', 'grid'], d.stacking),
@@ -371,4 +432,20 @@ export function mergeWithDefaults(raw: unknown): ConfigState {
     },
   };
   return normalize(s);
+}
+
+/**
+ * Stand im alten Format (Formatversion 1, vor Plan 06): „Zellen je Lage“ war eine Eingabe, die Aufteilung immer
+ * gleichmäßig. Das Ergebnis zeigt denselben Akku wie vorher. Ergibt die Ableitung aus der Lagenzahl dieselben
+ * Werte, wird auf automatisch zurückgestellt (Plan 06 §4.7).
+ */
+export function migrateV1(raw: unknown): ConfigState {
+  if (!raw || typeof raw !== 'object') throw new Error('Ungültige Konfiguration');
+  const s = mergeWithDefaults({ ...raw, bridge: 'auto', wideLayer: 'top', layers: 2, cellsPerRowManual: true });
+  const rows = s.cellsPerRowSplitManual ? s.cellsPerRowSplit : s.seriesSplit.map(() => s.cellsPerRow);
+  const layers = (s.seriesSplit[0] * s.parallel) / rows[0];
+  if (!Number.isInteger(layers) || layers < LAYER_LIMITS.min || layers > LAYER_LIMITS.max) return s;
+  const auto = autoRows(s.seriesSplit, s.parallel, layers, s.stacking);
+  if (auto.error || auto.perRow.join() !== rows.join()) return s;
+  return normalize({ ...s, layers, cellsPerRowManual: false, cellsPerRowSplitManual: false });
 }

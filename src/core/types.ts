@@ -87,6 +87,8 @@ export interface BatteryConfig {
   packGap: number;
   /** mm je Stirnseite */
   nickelThickness: number;
+  /** Unvollständige Lage (Wabe, 2 Lagen, ungerade Zellzahl): welche Lage die größere ist. Fehlt der Wert, gilt 'top'. */
+  wideLayer?: 'top' | 'bottom';
 }
 
 /** Standardwert laut Nutzer: 18S2P, 21700, 2 Teilpacks à 9 Zellen je Lage, Wabe nach links, Minus vorne rechts, Plus hinten rechts */

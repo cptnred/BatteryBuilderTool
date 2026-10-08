@@ -1,0 +1,823 @@
+{
+ "name": "30S1P_21700",
+ "config": {
+  "cell": {
+   "id": "21700",
+   "label": "21700",
+   "diameter": 21.4,
+   "length": 70,
+   "capacityAh": 4.5,
+   "nominalV": 3.6,
+   "maxV": 4.2
+  },
+  "series": 30,
+  "parallel": 1,
+  "subPacks": 2,
+  "cellsPerRow": 8,
+  "stacking": "honeycomb",
+  "offsetSide": "L",
+  "spacing": {
+   "mode": "fishpaper",
+   "paperThickness": 0.3,
+   "gapRow": 1,
+   "gapLayer": 1,
+   "holderRim": 1
+  },
+  "booster": null,
+  "mainMinus": {
+   "end": "V",
+   "side": "R"
+  },
+  "mainPlus": {
+   "end": "H",
+   "side": "R"
+  },
+  "packGap": 0.5,
+  "nickelThickness": 0.2
+ },
+ "stats": {
+  "cells": 30,
+  "nominalV": 108,
+  "maxV": 126,
+  "capacityAh": 4.5,
+  "energyWh": 486
+ },
+ "chain": [
+  "P0",
+  "P1"
+ ],
+ "cost": 2,
+ "issues": [],
+ "bridges": [
+  {
+   "from": "P0",
+   "to": "P1",
+   "node": 15,
+   "kind": "inner",
+   "fromFace": "H",
+   "toFace": "V",
+   "fromSide": "L",
+   "toSide": "L"
+  }
+ ],
+ "packs": [
+  {
+   "key": "P0",
+   "label": "Pack A (vorne)",
+   "dir": "RL",
+   "startFace": "V",
+   "endFace": "H",
+   "startSide": "R",
+   "endSide": "L",
+   "layers": 2,
+   "perRow": 8,
+   "width": 173.3,
+   "height": 40.19,
+   "length": 70.4,
+   "groups": [
+    {
+     "s": 1,
+     "minusFace": "V",
+     "cells": [
+      "L1-7"
+     ]
+    },
+    {
+     "s": 2,
+     "minusFace": "H",
+     "cells": [
+      "L0-6"
+     ]
+    },
+    {
+     "s": 3,
+     "minusFace": "V",
+     "cells": [
+      "L1-6"
+     ]
+    },
+    {
+     "s": 4,
+     "minusFace": "H",
+     "cells": [
+      "L0-5"
+     ]
+    },
+    {
+     "s": 5,
+     "minusFace": "V",
+     "cells": [
+      "L1-5"
+     ]
+    },
+    {
+     "s": 6,
+     "minusFace": "H",
+     "cells": [
+      "L0-4"
+     ]
+    },
+    {
+     "s": 7,
+     "minusFace": "V",
+     "cells": [
+      "L1-4"
+     ]
+    },
+    {
+     "s": 8,
+     "minusFace": "H",
+     "cells": [
+      "L0-3"
+     ]
+    },
+    {
+     "s": 9,
+     "minusFace": "V",
+     "cells": [
+      "L1-3"
+     ]
+    },
+    {
+     "s": 10,
+     "minusFace": "H",
+     "cells": [
+      "L0-2"
+     ]
+    },
+    {
+     "s": 11,
+     "minusFace": "V",
+     "cells": [
+      "L1-2"
+     ]
+    },
+    {
+     "s": 12,
+     "minusFace": "H",
+     "cells": [
+      "L0-1"
+     ]
+    },
+    {
+     "s": 13,
+     "minusFace": "V",
+     "cells": [
+      "L1-1"
+     ]
+    },
+    {
+     "s": 14,
+     "minusFace": "H",
+     "cells": [
+      "L0-0"
+     ]
+    },
+    {
+     "s": 15,
+     "minusFace": "V",
+     "cells": [
+      "L1-0"
+     ]
+    }
+   ],
+   "strips": [
+    {
+     "node": 0,
+     "face": "V",
+     "kind": "start",
+     "cells": [
+      "L1-7"
+     ]
+    },
+    {
+     "node": 1,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-7",
+      "L0-6"
+     ]
+    },
+    {
+     "node": 2,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-6",
+      "L1-6"
+     ]
+    },
+    {
+     "node": 3,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-6",
+      "L0-5"
+     ]
+    },
+    {
+     "node": 4,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-5",
+      "L1-5"
+     ]
+    },
+    {
+     "node": 5,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-5",
+      "L0-4"
+     ]
+    },
+    {
+     "node": 6,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-4",
+      "L1-4"
+     ]
+    },
+    {
+     "node": 7,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-4",
+      "L0-3"
+     ]
+    },
+    {
+     "node": 8,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-3",
+      "L1-3"
+     ]
+    },
+    {
+     "node": 9,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-3",
+      "L0-2"
+     ]
+    },
+    {
+     "node": 10,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-2",
+      "L1-2"
+     ]
+    },
+    {
+     "node": 11,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-2",
+      "L0-1"
+     ]
+    },
+    {
+     "node": 12,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-1",
+      "L1-1"
+     ]
+    },
+    {
+     "node": 13,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-1",
+      "L0-0"
+     ]
+    },
+    {
+     "node": 14,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-0",
+      "L1-0"
+     ]
+    },
+    {
+     "node": 15,
+     "face": "H",
+     "kind": "end",
+     "cells": [
+      "L1-0"
+     ]
+    }
+   ],
+   "outline": {
+    "straightPerimeter": 393.7,
+    "tuckedPerimeter": 550.8
+   }
+  },
+  {
+   "key": "P1",
+   "label": "Pack B (hinten)",
+   "dir": "LR",
+   "startFace": "V",
+   "endFace": "H",
+   "startSide": "L",
+   "endSide": "R",
+   "layers": 2,
+   "perRow": 8,
+   "width": 173.3,
+   "height": 40.19,
+   "length": 70.4,
+   "groups": [
+    {
+     "s": 16,
+     "minusFace": "V",
+     "cells": [
+      "L1-0"
+     ]
+    },
+    {
+     "s": 17,
+     "minusFace": "H",
+     "cells": [
+      "L0-0"
+     ]
+    },
+    {
+     "s": 18,
+     "minusFace": "V",
+     "cells": [
+      "L1-1"
+     ]
+    },
+    {
+     "s": 19,
+     "minusFace": "H",
+     "cells": [
+      "L0-1"
+     ]
+    },
+    {
+     "s": 20,
+     "minusFace": "V",
+     "cells": [
+      "L1-2"
+     ]
+    },
+    {
+     "s": 21,
+     "minusFace": "H",
+     "cells": [
+      "L0-2"
+     ]
+    },
+    {
+     "s": 22,
+     "minusFace": "V",
+     "cells": [
+      "L1-3"
+     ]
+    },
+    {
+     "s": 23,
+     "minusFace": "H",
+     "cells": [
+      "L0-3"
+     ]
+    },
+    {
+     "s": 24,
+     "minusFace": "V",
+     "cells": [
+      "L1-4"
+     ]
+    },
+    {
+     "s": 25,
+     "minusFace": "H",
+     "cells": [
+      "L0-4"
+     ]
+    },
+    {
+     "s": 26,
+     "minusFace": "V",
+     "cells": [
+      "L1-5"
+     ]
+    },
+    {
+     "s": 27,
+     "minusFace": "H",
+     "cells": [
+      "L0-5"
+     ]
+    },
+    {
+     "s": 28,
+     "minusFace": "V",
+     "cells": [
+      "L1-6"
+     ]
+    },
+    {
+     "s": 29,
+     "minusFace": "H",
+     "cells": [
+      "L0-6"
+     ]
+    },
+    {
+     "s": 30,
+     "minusFace": "V",
+     "cells": [
+      "L1-7"
+     ]
+    }
+   ],
+   "strips": [
+    {
+     "node": 15,
+     "face": "V",
+     "kind": "start",
+     "cells": [
+      "L1-0"
+     ]
+    },
+    {
+     "node": 16,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-0",
+      "L0-0"
+     ]
+    },
+    {
+     "node": 17,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-0",
+      "L1-1"
+     ]
+    },
+    {
+     "node": 18,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-1",
+      "L0-1"
+     ]
+    },
+    {
+     "node": 19,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-1",
+      "L1-2"
+     ]
+    },
+    {
+     "node": 20,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-2",
+      "L0-2"
+     ]
+    },
+    {
+     "node": 21,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-2",
+      "L1-3"
+     ]
+    },
+    {
+     "node": 22,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-3",
+      "L0-3"
+     ]
+    },
+    {
+     "node": 23,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-3",
+      "L1-4"
+     ]
+    },
+    {
+     "node": 24,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-4",
+      "L0-4"
+     ]
+    },
+    {
+     "node": 25,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-4",
+      "L1-5"
+     ]
+    },
+    {
+     "node": 26,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-5",
+      "L0-5"
+     ]
+    },
+    {
+     "node": 27,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-5",
+      "L1-6"
+     ]
+    },
+    {
+     "node": 28,
+     "face": "H",
+     "kind": "series",
+     "cells": [
+      "L1-6",
+      "L0-6"
+     ]
+    },
+    {
+     "node": 29,
+     "face": "V",
+     "kind": "series",
+     "cells": [
+      "L0-6",
+      "L1-7"
+     ]
+    },
+    {
+     "node": 30,
+     "face": "H",
+     "kind": "end",
+     "cells": [
+      "L1-7"
+     ]
+    }
+   ],
+   "outline": {
+    "straightPerimeter": 393.7,
+    "tuckedPerimeter": 550.8
+   }
+  }
+ ],
+ "taps": [
+  {
+   "node": 0,
+   "label": "B0 (Hauptminus)",
+   "spots": [
+    "P0/V/start"
+   ]
+  },
+  {
+   "node": 1,
+   "label": "B1",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 2,
+   "label": "B2",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 3,
+   "label": "B3",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 4,
+   "label": "B4",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 5,
+   "label": "B5",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 6,
+   "label": "B6",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 7,
+   "label": "B7",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 8,
+   "label": "B8",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 9,
+   "label": "B9",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 10,
+   "label": "B10",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 11,
+   "label": "B11",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 12,
+   "label": "B12",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 13,
+   "label": "B13",
+   "spots": [
+    "P0/H/series"
+   ]
+  },
+  {
+   "node": 14,
+   "label": "B14",
+   "spots": [
+    "P0/V/series"
+   ]
+  },
+  {
+   "node": 15,
+   "label": "B15",
+   "spots": [
+    "P0/H/end",
+    "P1/V/start"
+   ]
+  },
+  {
+   "node": 16,
+   "label": "B16",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 17,
+   "label": "B17",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 18,
+   "label": "B18",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 19,
+   "label": "B19",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 20,
+   "label": "B20",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 21,
+   "label": "B21",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 22,
+   "label": "B22",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 23,
+   "label": "B23",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 24,
+   "label": "B24",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 25,
+   "label": "B25",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 26,
+   "label": "B26",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 27,
+   "label": "B27",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 28,
+   "label": "B28",
+   "spots": [
+    "P1/H/series"
+   ]
+  },
+  {
+   "node": 29,
+   "label": "B29",
+   "spots": [
+    "P1/V/series"
+   ]
+  },
+  {
+   "node": 30,
+   "label": "B30 (Hauptplus)",
+   "spots": [
+    "P1/H/end"
+   ]
+  }
+ ]
+}

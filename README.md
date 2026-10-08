@@ -26,10 +26,13 @@ Für `npm run e2e` einmalig `npx playwright install chromium` ausführen oder ei
 
 ## Bedienung
 
-1. **Schnellwahl** oben in der Konfiguration: 18S2P, 32S1P, 20S2P, 20S2P Splitpack (18S2P + 2S2P) oder „Zurücksetzen“.
-2. **Konfiguration** links (mobil über den Knopf „Konfiguration“ oben): Zelle (9 Zellen aus Datenblättern, nach Bauform
-   21700/18650 gruppiert, oder „eigene Zelle“), Pack, Anordnung, Abstände, Anschlüsse,
-   Splitpack und Fishpaper. Jede Änderung wird sofort neu berechnet. Eingaben mit Komma oder Punkt.
+1. **Schnellwahl** oben in der Konfiguration: 18S2P, 20S2P, 20S2P Splitpack (18S2P + 2S2P), 30S1P, 32S1P oder „Zurücksetzen“.
+2. **Konfiguration** links (mobil über den Knopf „Konfiguration“ oben). Oben stehen die Grundwerte: Zelle (9 Zellen aus
+   Datenblättern, nach Bauform 21700/18650 gruppiert, oder „eigene Zelle“), S, P und **Brücke innen/außen**.
+   Darunter die Liste **Aufbau** mit allem, was die App daraus ableitet: Teilpacks, Lagen, Stapelung, Anschlüsse,
+   Abstände, Zellmaße, Splitpack, Zuschnitt. Jede Zeile zeigt ihren aktuellen Wert und klappt ihre Felder auf.
+   Geänderte Zeilen tragen die Marke „angepasst“ und lassen sich einzeln zurücksetzen; Zeilen mit Fehler klappen
+   von selbst auf. Jede Änderung wird sofort neu berechnet. Eingaben mit Komma oder Punkt.
    Ungültige Felder werden rot markiert; die Ansichten zeigen dann den letzten gültigen Stand, ausgegraut, mit der Fehlermeldung.
 3. **Verschaltung**: Draufsicht (VORNE oben), alle Stirnseiten immer von außen betrachtet (Vorderseite gespiegelt,
    mit R/L-Markern), Polarität als **+/−** und Farbe, Gruppennummern, Nickelstreifen und Bk-Labels.
@@ -54,8 +57,8 @@ Kontrollquadrat-Regel (Nutzerentscheidung). Maßstab 1:1 in mm.
 **Drucken:** Das PDF immer in Originalgröße (100 %) drucken, nicht „An Seite anpassen“. Auf jeder Seite das
 Kontrollquadrat (50 × 50 mm) nachmessen.
 
-Die Konfiguration steckt im URL-Hash (`#c=…`, nur Abweichungen vom Standard) und wird zusätzlich im Browser gemerkt.
-Links sind dadurch teilbar.
+Die Konfiguration steckt im URL-Hash (`#c2=…`, nur Abweichungen vom Standard) und wird zusätzlich im Browser gemerkt.
+Links sind dadurch teilbar. Ältere Links (`#c=…`) und JSON-Dateien werden übernommen und zeigen denselben Akku.
 
 ## Deploy
 
@@ -74,7 +77,7 @@ src/core/        Fachlogik (rein, getestet): Geometrie, Verschaltung, Solver, Pr
 src/view/        Zeichenmodelle der Ansichten in mm (rein): Stirnseiten, Draufsicht, Anschlüsse, Annahmen-Text
 src/fishpaper/   Teile-Generator, 2D-Geometrie, Regal-Packing, Kachelung (rein)
 src/export/      Seitenplan, Zeichenprimitive, PDF (jsPDF), SVG
-src/state/       Zustand, Presets, Reducer, URL-Hash, localStorage, JSON
+src/state/       Zustand, Presets, Reducer, Ableitungen (Brücke, Lagen), Anzeigetexte des Panels, URL-Hash, localStorage, JSON
 src/ui/          React-Komponenten (rechnen nicht selbst)
 tests/           Vitest; tests/e2e/ Playwright
 reference/       Referenz-Implementierung, Fixtures (Soll-Ergebnisse), bestätigte Skizzen
@@ -83,6 +86,9 @@ reference/       Referenz-Implementierung, Fixtures (Soll-Ergebnisse), bestätig
 `src/core` ist eine 1:1-Übernahme von `reference/pack-core.ts`, in Module aufgeteilt. Ein Test
 (`tests/reference-equivalence.test.ts`) vergleicht Packs, Brücken, Kette, Kosten und Umfänge für über 500 Konfigurationen
 direkt mit der Referenz. Alle Fixtures in `reference/fixtures/` werden unverändert geprüft.
+
+Einzige Erweiterung gegenüber der Referenz: die unvollständige Lage (`docs/06_PLAN_BRUECKE_UND_BEDIENUNG.md` §3).
+Die Referenz kennt sie nicht; die Fixture `30S1P_21700` stammt deshalb aus `src/core` und ist vom Nutzer bestätigt.
 
 ## Annahmen
 
@@ -147,6 +153,18 @@ Fachliche Regeln stammen unverändert aus `docs/01_FACHKONZEPT.md`. Die folgende
 - Eingebogener Umriss: Kleber-Sehne 0,6 mm über jedem Tal (Stirnseiten, Zwischenlagen, Umwicklung), in `src/fishpaper/glue.ts`.
   Der Kern-Umriss bleibt unverändert (Fixture-Umfänge gelten weiter); die Umwicklung wird kürzer (18S2P P50B: 632,8 statt
   651,9 mm). Je Tal eine Falzlinie in der Sehnenmitte.
+
+**Brückenlage, unvollständige Lage, Bedienung (Runde 3, docs/06_PLAN_BRUECKE_UND_BEDIENUNG.md; Rückfragen vom Nutzer entschieden)**
+- Hauptminus und Hauptplus liegen immer außen. Die Brückenlage folgt aus der Aufteilung; der Schalter „Brücke“ teilt
+  bei der anderen Lage (h+1) + (h−1) auf, größerer Teilpack vorne. Er ist nur bei 2 Teilpacks und gerader Gruppenzahl aktiv.
+- Unvollständige Lage nur bei Wabe mit 2 Lagen und genau einer fehlenden Zelle (15 = 8 + 7). Raster und 3+ Lagen
+  verlangen volle Lagen.
+- Eingegeben werden die Lagen (Standard 2); die Zellen je Lage rechnet die App aus. „Zellen je Lage manuell“ bleibt möglich.
+- Alte Links: Zellen je Lage gelten als manuell gesetzt, außer die Ableitung ergibt dasselbe. Ein alter Link, dessen
+  Zellzahl jetzt als unvollständige Lage passt, zeigt statt des früheren Fehlers den Akku.
+- Fishpaper „Ober-/Unterseite“ bleibt ein Rechteck in Packbreite. Bei unvollständiger Lage ist die Seite mit der
+  kürzeren Lage eine Zelle schmaler; das Teil wird dort von Hand gekürzt.
+- Annahmen-Text: „beginnend oben/unten“ nennt jetzt den tatsächlichen Start des ersten Teilpacks.
 
 ## Offen (Stufe 2)
 

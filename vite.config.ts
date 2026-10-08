@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node',
+    // Der Äquivalenztest zur Referenz rechnet über 500 Konfigurationen doppelt und braucht je nach Rechnerlast 3–5 s.
+    testTimeout: 20000,
   },
 });

@@ -1,15 +1,19 @@
 /**
- * Screenshots der vier Presets nach docs/screenshots/ plus Kernabläufe der UI.
+ * Screenshots der fünf Presets nach docs/screenshots/ plus Kernabläufe der UI.
  * Die Bilder werden mit reference/bestaetigte-skizzen/ verglichen (von Hand).
  */
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 const SHOTS = 'docs/screenshots';
+/** Zeile der Liste „Aufbau“ aufklappen */
+const openRow = (page: Page, id: string) => page.getByTestId(`row-${id}`).locator('summary').click();
 const PRESETS = [
   { button: '18S2P', file: '18S2P' },
   { button: '32S1P', file: '32S1P' },
   { button: '20S2P', file: '20S2P' },
   { button: '20S2P Splitpack (18S2P + 2S2P)', file: '20S2P_Splitpack' },
+  { button: '30S1P', file: '30S1P' },
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -63,7 +67,9 @@ test('Fishpaper-, Stücklisten- und Export-Tab', async ({ page }) => {
 test('Raster + Abstandhalter verlangt manuelle Abstände, sonst kein Export', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('/');
+  await openRow(page, 'stacking');
   await page.getByRole('radio', { name: 'Raster' }).check();
+  await openRow(page, 'spacing');
   await page.getByRole('radio', { name: 'Abstandhalter' }).check();
   await expect(page.locator('.stale-banner')).toContainText('„Spalt Reihe“ ist ein Pflichtfeld');
   await page.getByRole('tab', { name: 'Export' }).click();
@@ -78,6 +84,8 @@ test('Raster + Abstandhalter verlangt manuelle Abstände, sonst kein Export', as
 
 test('Ungültige Eingabe wird am Feld markiert, Ansicht ausgegraut', async ({ page }) => {
   await page.goto('/');
+  await openRow(page, 'layers');
+  await page.getByLabel('Zellen je Lage manuell').check();
   await page.getByLabel('Zellen je Lage', { exact: true }).fill('7');
   await expect(page.locator('.stale-banner')).toContainText('nicht in volle Lagen à 7');
   await expect(page.locator('.panel.is-stale')).toHaveCount(1);
@@ -88,7 +96,7 @@ test('Ungültige Eingabe wird am Feld markiert, Ansicht ausgegraut', async ({ pa
 test('URL-Hash ist teilbar', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '32S1P', exact: true }).click();
-  await expect(page).toHaveURL(/#c=/);
+  await expect(page).toHaveURL(/#c2=/);
   const url = page.url();
   const page2 = await page.context().newPage();
   await page2.goto(url);
@@ -136,9 +144,112 @@ test('Booster: Lagenzahl wie der Teilpack, an dem er hängt', async ({ page }) =
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('/');
   await page.getByRole('button', { name: '20S2P Splitpack (18S2P + 2S2P)', exact: true }).click();
+  await openRow(page, 'booster');
   await expect(page.getByTestId('booster-rows')).toHaveText('Booster: 2 Lagen wie Pack B (hinten) → 2 Zellen je Lage');
   await page.getByLabel('Booster S').fill('3');
   await page.getByLabel('S gesamt').fill('21');
   await expect(page.getByTestId('booster-rows')).toContainText('3 Zellen je Lage');
   await page.screenshot({ path: `${SHOTS}/booster.png`, fullPage: true });
+});
+
+test('30S1P: Brücke innen; „außen“ teilt 16 + 14, „innen“ stellt 15 + 15 wieder her', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto('/');
+  await page.getByRole('button', { name: '30S1P', exact: true }).click();
+  await expect(page.getByTestId('summary')).toContainText('30S1P');
+  await expect(page.getByRole('radio', { name: 'innen' })).toBeChecked();
+  await expect(page.getByText('gleichmäßig 15 + 15')).toBeVisible();
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  await page.getByRole('radio', { name: 'außen' }).check();
+  await expect(page.getByText('ungleich 16 + 14 – Teilpacks unterschiedlich breit')).toBeVisible();
+  await expect(page.getByRole('button', { name: '30S1P', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('radio', { name: 'innen' }).check();
+  await expect(page.getByRole('button', { name: '30S1P', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('Aufbau-Liste: Zeilen zugeklappt mit Kurzwert, Details klappen auf', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto('/');
+  await expect(page.getByTestId('row-packs')).toContainText('2 · 9 + 9');
+  await expect(page.getByTestId('row-layers')).toContainText('2 · 9 je Lage');
+  await expect(page.getByTestId('row-terminals')).toContainText('− vorne rechts · + hinten rechts');
+  await expect(page.getByLabel('Teilpacks im Hauptpack')).toBeHidden();
+  await openRow(page, 'packs');
+  await expect(page.getByLabel('Teilpacks im Hauptpack')).toBeVisible();
+  await page.getByRole('button', { name: '30S1P', exact: true }).click();
+  await expect(page.getByTestId('row-layers')).toContainText('2 · 8 + 7');
+  await openRow(page, 'layers');
+  await expect(page.getByRole('radio', { name: 'oben' })).toBeChecked();
+  await page.screenshot({ path: `${SHOTS}/aufbau.png`, fullPage: true });
+});
+
+test('„angepasst“ und „Zurück auf Standard“', async ({ page }) => {
+  await page.goto('/');
+  await openRow(page, 'stacking');
+  await page.getByRole('radio', { name: 'nach rechts' }).check();
+  await expect(page.getByTestId('row-stacking')).toContainText('angepasst');
+  await page.getByTestId('row-stacking').getByRole('button', { name: 'Zurück auf Standard' }).click();
+  await expect(page.getByTestId('row-stacking')).not.toContainText('angepasst');
+  await expect(page.getByRole('radio', { name: 'nach links' })).toBeChecked();
+});
+
+test('Fehler klappt die Zeile von selbst auf', async ({ page }) => {
+  await page.goto('/');
+  await openRow(page, 'stacking');
+  await page.getByRole('radio', { name: 'Raster' }).check();
+  await page.getByLabel('S gesamt').fill('30');
+  await expect(page.getByTestId('layers-error')).toBeHidden();
+  await page.getByLabel('P', { exact: true }).fill('1');
+  await expect(page.getByTestId('layers-error')).toBeVisible();
+  await expect(page.getByTestId('layers-error')).toContainText('15 Zellen lassen sich nicht auf 2 Lagen aufteilen');
+  await expect(page.locator('.stale-banner')).toContainText('15 Zellen lassen sich nicht auf 2 Lagen aufteilen');
+  await expect(page.locator('.stale-banner')).not.toContainText('volle Lagen');
+});
+
+test('Fehler nur beim Tippen: „Lagen“ klappt wieder zu; ein Teilpack ohne Gruppen ist kein Lagen-Fehler', async ({ page }) => {
+  await page.goto('/');
+  const layers = page.getByTestId('row-layers');
+  const series = page.getByLabel('S gesamt');
+  // 18 -> „1“ -> 16: bei „1“ hat der hintere Teilpack keine Gruppe; das meldet der Kern, nicht die Zeile „Lagen“
+  await series.fill('');
+  await series.pressSequentially('1');
+  await expect(page.locator('.stale-banner')).toContainText('Zu wenige Seriengruppen');
+  await expect(layers).toHaveJSProperty('open', false);
+  await series.pressSequentially('6');
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  await expect(layers).toHaveJSProperty('open', false);
+  // 30S1P -> „3“ -> 32: bei „3“ geht eine einzelne Zelle nicht auf 2 Lagen auf; danach ist die Zeile wieder zu
+  await page.getByRole('button', { name: '30S1P', exact: true }).click();
+  await series.fill('');
+  await series.pressSequentially('3');
+  await expect(page.getByTestId('layers-error')).toBeVisible();
+  await series.pressSequentially('2');
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  await expect(layers).toHaveJSProperty('open', false);
+});
+
+test('Fehler in der Zeile selbst behoben: die Zeile bleibt offen', async ({ page }) => {
+  await page.goto('/');
+  await openRow(page, 'stacking');
+  await page.getByRole('radio', { name: 'Raster' }).check();
+  await page.getByLabel('S gesamt').fill('30');
+  await page.getByLabel('P', { exact: true }).fill('1');
+  await expect(page.getByTestId('layers-error')).toBeVisible();
+  await page.getByLabel('Lagen', { exact: true }).fill('1');
+  await expect(page.getByTestId('layers-error')).toHaveCount(0);
+  await expect(page.getByTestId('row-layers')).toHaveJSProperty('open', true);
+  await expect(page.getByLabel('Lagen', { exact: true })).toBeVisible();
+});
+
+test('Kurzwert „Anschlüsse“: − und + mit Symbol und Farbe', async ({ page }) => {
+  await page.goto('/');
+  const row = page.getByTestId('row-terminals');
+  await expect(row.locator('summary')).toContainText('− vorne rechts · + hinten rechts');
+  await expect(row.locator('.pol-text--minus')).toHaveText('−');
+  await expect(row.locator('.pol-text--plus')).toHaveText('+');
+  const color = (sel: string) => row.locator(sel).evaluate((el) => getComputedStyle(el).color);
+  const muted = await color('.section__aside');
+  expect(await color('.pol-text--minus')).not.toBe(muted);
+  expect(await color('.pol-text--plus')).not.toBe(muted);
+  expect(await color('.pol-text--minus')).not.toBe(await color('.pol-text--plus'));
 });

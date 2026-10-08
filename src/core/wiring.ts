@@ -42,7 +42,7 @@ export function buildSubPack(cfg: BatteryConfig, o: SubPackOptions): SubPack {
   const P = cfg.parallel;
   const nCells = o.series * P;
   const layers = Math.ceil(nCells / o.perRow);
-  const { cells, width, height } = placeCells(cfg, o.perRow, layers);
+  const { cells, width, height } = placeCells(cfg, o.perRow, layers, nCells);
   const ordered = orderCells(cells, o.dir, cfg.stacking, layers);
   const groups: Group[] = [];
   for (let j = 0; j < o.series; j++) {

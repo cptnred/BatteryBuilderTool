@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Issue, Layout } from '../core';
 import { packMetrics, solve, stats } from '../core';
-import { boosterInfo, datasheetOf, isBoosterRowIssue, toBatteryConfig } from '../state/config';
+import { boosterInfo, datasheetOf, isBoosterRowIssue, isRowPlanIssue, rowInfo, toBatteryConfig } from '../state/config';
 import { dischargeSummary } from '../view/metricsText';
 import { ConfigPanel } from './config/ConfigPanel';
 import { fmtFixed } from './format';
@@ -44,10 +44,14 @@ export function App() {
   const shown = layout.packs.length ? layout : lastValid;
 
   const fieldIssues: Issue[] = Object.values(fieldErrors.errors).map((msg) => ({ level: 'error', msg }));
-  // Booster (§3): eigene Meldung statt der Kern-Folgefehler zu „Zellen je Lage“
+  // Lagen (Plan 06 §4.3) und Booster (Plan 04 §3): eigene Meldung statt der Kern-Folgefehler zu „Zellen je Lage“
+  const rowError = rowInfo(state).error;
+  if (rowError) fieldIssues.push({ level: 'error', msg: rowError });
   const boosterError = boosterInfo(state)?.error ?? null;
   if (boosterError) fieldIssues.push({ level: 'error', msg: boosterError });
-  const layoutErrors = layout.issues.filter((i) => i.level === 'error' && !(boosterError && isBoosterRowIssue(i.msg)));
+  const isFollowUp = (msg: string) =>
+    (rowError !== null && (isRowPlanIssue(msg) || isBoosterRowIssue(msg))) || (boosterError !== null && isBoosterRowIssue(msg));
+  const layoutErrors = layout.issues.filter((i) => i.level === 'error' && !isFollowUp(i.msg));
   const hasErrors = fieldIssues.length > 0 || layoutErrors.length > 0;
   const st = shown ? stats(shown) : null;
 
@@ -87,6 +91,7 @@ export function App() {
             state={state}
             dispatch={dispatch}
             onError={fieldErrors.report}
+            errorIds={Object.keys(fieldErrors.errors)}
             onReset={() => dispatch({ type: 'reset' })}
           />
         </aside>

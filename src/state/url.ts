@@ -1,11 +1,12 @@
 /**
  * Zustand im URL-Hash: nur die vom Standard abweichenden Felder, als base64url-JSON.
- * Beispiel: #c=eyJzZXJpZXMiOjMyfQ
+ * Beispiel: #c2=eyJzZXJpZXMiOjMyfQ   (Formatversion 2; alte Links mit #c= werden übernommen, Plan 06 §4.7)
  */
 import type { ConfigState } from './config';
-import { DEFAULT_STATE, mergeWithDefaults } from './config';
+import { DEFAULT_STATE, mergeWithDefaults, migrateV1 } from './config';
 
-const PREFIX = 'c=';
+const PREFIX = 'c2=';
+const PREFIX_V1 = 'c=';
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);
@@ -37,10 +38,11 @@ export function encodeState(s: ConfigState): string {
 /** Liest einen Hash (mit oder ohne '#'). Liefert null bei fehlendem oder kaputtem Inhalt. */
 export function decodeState(hash: string): ConfigState | null {
   const h = hash.replace(/^#/, '');
-  if (!h.startsWith(PREFIX)) return null;
   try {
-    return mergeWithDefaults(JSON.parse(fromBase64Url(h.slice(PREFIX.length))));
+    if (h.startsWith(PREFIX)) return mergeWithDefaults(JSON.parse(fromBase64Url(h.slice(PREFIX.length))));
+    if (h.startsWith(PREFIX_V1)) return migrateV1(JSON.parse(fromBase64Url(h.slice(PREFIX_V1.length))));
   } catch {
     return null;
   }
+  return null;
 }

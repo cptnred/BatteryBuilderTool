@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CELL_DATASHEETS } from '../../core';
 import { fmtNum, parseNum, toInputText } from '../format';
 
@@ -37,6 +37,9 @@ function check(p: NumberFieldProps, v: number | null): string | null {
  */
 export function NumberField(p: NumberFieldProps) {
   const uid = useId();
+  // Feld verschwindet (z. B. „manuell“ abgewählt, Zeile zurückgesetzt): gemeldeten Fehler zurücknehmen
+  const { id, onError } = p;
+  useEffect(() => () => onError?.(id, null), [id, onError]);
   const [draft, setDraft] = useState<{ text: string; forValue: number | null } | null>(null);
   // Wert von außen geändert (Preset, Import) -> Entwurf verwerfen
   const text = draft && draft.forValue === p.value ? draft.text : toInputText(p.value);
@@ -92,17 +95,19 @@ export function NumberField(p: NumberFieldProps) {
 
 export interface ChoiceProps<T extends string> {
   label: string;
-  value: T;
+  /** null = keine Option markiert */
+  value: T | null;
   options: { value: T; label: string; title?: string }[];
   onChange: (v: T) => void;
   hint?: ReactNode;
+  disabled?: boolean;
 }
 
 /** Segmentierter Umschalter (Radiogruppe, per Tastatur bedienbar). */
 export function Choice<T extends string>(p: ChoiceProps<T>) {
   const name = useId();
   return (
-    <fieldset className="field choice">
+    <fieldset className="field choice" disabled={p.disabled}>
       <legend>{p.label}</legend>
       <div className="seg" role="radiogroup">
         {p.options.map((o) => (
@@ -129,11 +134,47 @@ export function Check(p: { label: ReactNode; checked: boolean; onChange: (v: boo
   );
 }
 
-export function Section(p: { title: string; children: ReactNode; open?: boolean; aside?: ReactNode }) {
+export function Section(p: {
+  title: string;
+  children: ReactNode;
+  open?: boolean;
+  aside?: ReactNode;
+  /** kleine Marke neben dem Titel, z. B. „angepasst“ */
+  badge?: string | null;
+  /** Fehler im Abschnitt: klappt von selbst auf und trägt eine Fehlermarke */
+  error?: boolean;
+  testId?: string;
+}) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  // Vom Fehler aufgeklappt: verschwindet der Fehler wieder (z. B. Zwischenstand beim Tippen), klappt der Abschnitt zu –
+  // außer der Nutzer hat ihn inzwischen bedient (Klick oder Fokus darin), dann bleibt er offen
+  const openedByError = useRef(false);
+  const touched = () => {
+    openedByError.current = false;
+  };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (p.error && !el.open) {
+      el.open = true;
+      openedByError.current = true;
+    } else if (!p.error && openedByError.current) {
+      el.open = false;
+      openedByError.current = false;
+    }
+  }, [p.error]);
   return (
-    <details className="section" open={p.open ?? true}>
+    <details
+      ref={ref}
+      className={'section' + (p.error ? ' section--error' : '')}
+      open={p.open ?? true}
+      data-testid={p.testId}
+      onClick={touched}
+      onFocus={touched}
+    >
       <summary>
         <span>{p.title}</span>
+        {p.badge && <span className="section__badge">{p.badge}</span>}
         {p.aside && <span className="section__aside">{p.aside}</span>}
       </summary>
       <div className="section__body">{p.children}</div>
