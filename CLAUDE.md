@@ -18,6 +18,13 @@ von Akkupacks aus 21700-/18650-Zellen für VESC-Onewheels. Den vollständigen Au
 - PDF-Export ist 1:1 (Vektor, mm) mit Kontrollquadrat 50 mm auf jeder Seite.
 - UI-Texte auf Deutsch. Polarität immer mit Symbol (+/−) **und** Farbe.
 
+## Deployment & GitHub (Details: `docs/05_DEPLOYMENT_UND_GITHUB.md`)
+- Live: https://apps.pev-point.de/battery/ · Repo: https://github.com/cptnred/BatteryBuilderTool (**öffentlich**, `main`).
+- Deploy: `npm run deploy` (Tests → Lint → Build → rsync nach `battery/`); vorher `.\deploy.ps1 -DryRun`.
+- Deployen, committen und pushen nur auf ausdrückliche Anfrage des Nutzers. Nie force-pushen, nie `--no-verify`.
+- Rsync-Ziel `battery/` nie ändern (`--delete` würde sonst andere Apps löschen). Keine Server-Konfiguration anfassen.
+- Keine Secrets/Schlüssel/`.env` committen. Keine absoluten Pfade ab `/` im Frontend; `localStorage`-Schlüssel mit Präfix `akku-konfigurator:`.
+
 ## Glossar (kurz)
 S/P · Teilpack (vorne/hinten) · Brücke · Booster/Splitpack · Lage · Zellen je Lage · Wabe/Raster ·
 Stirnseite V/H · Knoten Bk (B0 = Hauptminus, BS = Hauptplus).
