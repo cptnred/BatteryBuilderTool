@@ -19,6 +19,7 @@ export function BomTab({ layout, state }: { layout: Layout; state: ConfigState }
   const packBy = new Map(layout.packs.map((p) => [p.key, p]));
   const taps = balanceTaps(layout);
   const mm = (v: number) => fmtFixed(v, 1);
+  const boosterCount = layout.packs.filter((p) => p.role === 'booster').length;
 
   return (
     <div className="bom">
@@ -61,6 +62,14 @@ export function BomTab({ layout, state }: { layout: Layout; state: ConfigState }
               <td className="num">{mm(dim.main.height)}</td>
               <td className="num">{mm(dim.main.length)}</td>
             </tr>
+            {dim.booster && boosterCount > 1 && (
+              <tr className="tbl__sum">
+                <th scope="row">Booster gesamt (inkl. {fmtNum(cfg.packGap, 2)} mm Zwischenlage)</th>
+                <td className="num">{mm(dim.booster.width)}</td>
+                <td className="num">{mm(dim.booster.height)}</td>
+                <td className="num">{mm(dim.booster.length)}</td>
+              </tr>
+            )}
           </tbody>
         </table>
         <p className="note">Blanke Zellen inkl. Nickel, ohne Fishpaper-Umwicklung und Schrumpfschlauch.</p>

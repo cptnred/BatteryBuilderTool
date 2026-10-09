@@ -13,7 +13,7 @@ import type { FishpaperOptions, P2, Part, PartText, Path2 } from './types';
 export const TEXT_SIZE = 3;
 
 export function packShort(p: SubPack): string {
-  return p.role === 'booster' ? 'Booster' : p.label.replace(/ \(.*\)$/, '');
+  return p.key === 'BOOST' ? 'Booster' : p.label.replace(/ \(.*\)$/, '');
 }
 
 /** Umriss für Fishpaper-Teile: eingebogen mit Kleber-Sehnen (§4), gerade unverändert. */
@@ -204,7 +204,8 @@ function interlayerParts(layout: Layout, a: SubPack, b: SubPack, opts: Fishpaper
     enabled: true,
   };
   const name = `Zwischenlage ${packShort(a)} | ${packShort(b)}`;
-  const raw = [...orientationTexts(layout, a, cs, true), ...centerTexts(cs.w, cs.h, [name, 'Blick von vorne']), ...extraTexts];
+  const view = a.role === 'booster' ? 'Blick von Stirnseite 1' : 'Blick von vorne';
+  const raw = [...orientationTexts(layout, a, cs, true), ...centerTexts(cs.w, cs.h, [name, view]), ...extraTexts];
   const texts = fitTexts(
     raw,
     outer.pts,
@@ -346,20 +347,23 @@ export function wrapPart(
 export function buildParts(layout: Layout, opts: FishpaperOptions): Part[] {
   const cfg = layout.config;
   const parts: Part[] = [];
-  const main = layout.packs.filter((p) => p.role === 'main').sort((a, b) => a.position - b.position);
-  const booster = layout.packs.find((p) => p.role === 'booster');
+  const byPos = (a: SubPack, b: SubPack) => a.position - b.position;
+  const main = layout.packs.filter((p) => p.role === 'main').sort(byPos);
+  // Einzelpacks des Boosters, Stirnseite 1 -> 2 (Plan 07 §7)
+  const boost = layout.packs.filter((p) => p.role === 'booster').sort(byPos);
   const m = opts.faceMargin;
 
   // 1. Stirnseiten außen
   parts.push(facePart(layout, main[0], 'V', opts));
   parts.push(facePart(layout, main[main.length - 1], 'H', opts));
-  if (booster) parts.push(facePart(layout, booster, 'V', opts), facePart(layout, booster, 'H', opts));
+  if (boost.length) parts.push(facePart(layout, boost[0], 'V', opts), facePart(layout, boost[boost.length - 1], 'H', opts));
 
   // 2. Zwischenlagen
-  for (let i = 0; i + 1 < main.length; i++) parts.push(...interlayerParts(layout, main[i], main[i + 1], opts));
+  for (const group of [main, boost])
+    for (let i = 0; i + 1 < group.length; i++) parts.push(...interlayerParts(layout, group[i], group[i + 1], opts));
 
   // 3./4. Seitenteile, Ober-/Unterseite
-  for (const p of booster ? [...main, booster] : main) {
+  for (const p of [...main, ...boost]) {
     if (opts.includeSides)
       parts.push(
         rectPart(
@@ -388,30 +392,30 @@ export function buildParts(layout: Layout, opts: FishpaperOptions): Part[] {
       );
   }
 
-  // 5. Umwicklung
-  if (opts.wrapMode === 'combined' && main.length > 1) {
-    const widest = main.reduce((a, p) =>
-      partOutline(layout, p, opts.outlineWrap).perimeter > partOutline(layout, a, opts.outlineWrap).perimeter ? p : a,
-    );
-    const length = main.reduce((a, p) => a + p.length, 0) + (main.length - 1) * cfg.packGap;
-    parts.push(wrapPart('wrap-ALL', 'ALL', 'Umwicklung gesamt', partOutline(layout, widest, opts.outlineWrap), length, opts));
-  } else {
-    for (const p of main)
-      parts.push(
-        wrapPart(`wrap-${p.key}`, p.key, `Umwicklung ${packShort(p)}`, partOutline(layout, p, opts.outlineWrap), p.length, opts),
+  // 5. Umwicklung: je Pack oder gemeinsam über eine Gruppe (nach dem Pack mit dem größten Umfang)
+  const wraps = (group: SubPack[], allId: string, allName: string) => {
+    if (opts.wrapMode === 'combined' && group.length > 1) {
+      const widest = group.reduce((a, p) =>
+        partOutline(layout, p, opts.outlineWrap).perimeter > partOutline(layout, a, opts.outlineWrap).perimeter ? p : a,
       );
-  }
-  if (booster)
-    parts.push(
-      wrapPart(
-        `wrap-${booster.key}`,
-        booster.key,
-        'Umwicklung Booster',
-        partOutline(layout, booster, opts.outlineWrap),
-        booster.length,
-        opts,
-      ),
-    );
+      const length = group.reduce((a, p) => a + p.length, 0) + (group.length - 1) * cfg.packGap;
+      parts.push(wrapPart(`wrap-${allId}`, allId, allName, partOutline(layout, widest, opts.outlineWrap), length, opts));
+    } else {
+      for (const p of group)
+        parts.push(
+          wrapPart(
+            `wrap-${p.key}`,
+            p.key,
+            `Umwicklung ${packShort(p)}`,
+            partOutline(layout, p, opts.outlineWrap),
+            p.length,
+            opts,
+          ),
+        );
+    }
+  };
+  wraps(main, 'ALL', 'Umwicklung gesamt');
+  wraps(boost, 'BOOSTALL', 'Umwicklung Booster gesamt');
 
   return parts.map((p) => applyOverride(p, opts));
 }

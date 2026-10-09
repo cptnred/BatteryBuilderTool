@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { BatteryConfig } from '../src/core';
+import type { BatteryConfig, Layout } from '../src/core';
 import { DEFAULT_CONFIG, packOutline, solve } from '../src/core';
 import { boxInside, clipPath, pointInPolygon, polygonArea, textBox } from '../src/fishpaper/geom2d';
 import { flattenSegs, notchSegs, polylineSegs, segsArea } from '../src/fishpaper/segments';
@@ -158,6 +158,99 @@ describe('Teile 18S2P', () => {
     const p = buildParts(L18, { ...opts, wrapMode: 'combined', wrapFold: 5 });
     const w = p.find((x) => x.id === 'wrap-ALL')!;
     expect(w.h).toBeCloseTo(70.4 * 2 + 0.5 + 10, 6);
+  });
+});
+
+describe('Geteilter Booster (Plan 07 §7)', () => {
+  const A = solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 1, position: 'plus', subPacks: 2 } });
+  const B = solve({
+    ...DEFAULT_CONFIG,
+    series: 20,
+    cellsPerRow: 8,
+    booster: { series: 4, cellsPerRow: 2, position: 'plus', subPacks: 2 },
+  });
+  const C = solve({
+    ...DEFAULT_CONFIG,
+    series: 20,
+    cellsPerRow: 8,
+    booster: { series: 4, cellsPerRow: 3, position: 'plus', subPacks: 2, seriesSplit: [3, 1], cellsPerRowSplit: [3, 1] },
+  });
+
+  it('Teileliste: Stirnseiten außen, Zwischenlage, Seitenteile und Umwicklung je Einzelpack', () => {
+    const parts = buildParts(A, opts);
+    expect(parts.map((p) => p.id)).toEqual([
+      'face-V-P0',
+      'face-H-P1',
+      'face-V-BOOST0',
+      'face-H-BOOST1',
+      'inter-P0-P1',
+      'inter-BOOST0-BOOST1',
+      'side-P0',
+      'side-P1',
+      'side-BOOST0',
+      'side-BOOST1',
+      'wrap-P0',
+      'wrap-P1',
+      'wrap-BOOST0',
+      'wrap-BOOST1',
+    ]);
+    const part = (id: string) => parts.find((p) => p.id === id)!;
+    expect(part('face-V-BOOST0').name).toBe('Stirnseite vorne – Booster A');
+    expect(part('face-H-BOOST1').name).toBe('Stirnseite hinten – Booster B');
+    expect(part('inter-BOOST0-BOOST1').name).toBe('Zwischenlage Booster A | Booster B');
+    expect(part('side-BOOST1').name).toBe('Seitenteil links/rechts – Booster B');
+    expect(part('wrap-BOOST1').name).toBe('Umwicklung Booster B');
+    expect(part('inter-BOOST0-BOOST1').count).toBe(1);
+  });
+
+  it('Zwischenlage: Brückenausschnitt bei Brücke innen, keiner bei Brücke außen', () => {
+    const area = (L: Layout, bridgeCutout: FishpaperOptions['bridgeCutout']) =>
+      buildParts(L, { ...opts, bridgeCutout }).find((p) => p.id === 'inter-BOOST0-BOOST1')!.area;
+    expect(area(A, 'notch')).toBeLessThan(area(A, 'none') - 1);
+    expect(area(A, 'slot')).toBeCloseTo(area(A, 'none') - opts.cutoutWidth * opts.cutoutHeight, 6);
+    expect(area(B, 'notch')).toBeCloseTo(area(B, 'none'), 9);
+  });
+
+  it('Zwischenlage des Boosters trägt „Blick von Stirnseite 1“', () => {
+    // 6S als 3 + 3 in einer Lage: 129,9 mm breit, die Texte passen sicher hinein
+    const L = solve({ ...DEFAULT_CONFIG, series: 24, booster: { series: 6, cellsPerRow: 6, position: 'plus', subPacks: 2 } });
+    const texts = (id: string) =>
+      buildParts(L, opts)
+        .find((p) => p.id === id)!
+        .texts.map((t) => t.text);
+    expect(texts('inter-BOOST0-BOOST1')).toContain('Blick von Stirnseite 1');
+    expect(texts('inter-BOOST0-BOOST1')).not.toContain('Blick von vorne');
+    expect(texts('inter-P0-P1')).toContain('Blick von vorne');
+  });
+
+  it('Umwicklung gesamt: ein Teil über alle Einzelpacks, nach dem breiteren', () => {
+    const p = buildParts(C, { ...opts, wrapMode: 'combined', wrapFold: 5 });
+    const ids = p.map((x) => x.id);
+    expect(ids).toContain('wrap-ALL');
+    expect(ids).toContain('wrap-BOOSTALL');
+    expect(ids).not.toContain('wrap-BOOST0');
+    const w = p.find((x) => x.id === 'wrap-BOOSTALL')!;
+    expect(w.name).toBe('Umwicklung Booster gesamt');
+    expect(w.h).toBeCloseTo(70.4 * 2 + 0.5 + 10, 6);
+    expect(w.w).toBeCloseTo(buildParts(C, opts).find((x) => x.id === 'wrap-BOOST0')!.w, 6);
+  });
+
+  it('ein Einzelpack: dieselben Teile wie bisher, auch bei Umwicklung gesamt', () => {
+    const L = solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 2, position: 'plus' } });
+    const parts = buildParts(L, { ...opts, wrapMode: 'combined' });
+    expect(parts.map((p) => p.id)).toEqual([
+      'face-V-P0',
+      'face-H-P1',
+      'face-V-BOOST',
+      'face-H-BOOST',
+      'inter-P0-P1',
+      'side-P0',
+      'side-P1',
+      'side-BOOST',
+      'wrap-ALL',
+      'wrap-BOOST',
+    ]);
+    expect(parts.find((p) => p.id === 'wrap-BOOST')!.name).toBe('Umwicklung Booster');
   });
 });
 

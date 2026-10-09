@@ -22,6 +22,7 @@ Sprache der Oberfläche: **Deutsch**. Einheiten: mm, V, Ah, Wh. Dezimaltrennzeic
 Seit Plan 06 (`docs/06_PLAN_BRUECKE_UND_BEDIENUNG.md` §5) zeigt die Konfiguration oben nur Schnellwahl, Zelle, S, P und
 Brücke. Darunter steht die Liste „Aufbau“ (Teilpacks, Lagen, Stapelung, Anschlüsse, Abstände, Zellmaße, Splitpack,
 Zuschnitt) mit aufklappbaren Zeilen.
+Seit Plan 07 (`docs/07_PLAN_BOOSTER_TEILEN.md`) lässt sich der Booster in der Zeile „Splitpack“ in Einzelpacks teilen.
 
 Mobil: Die Konfiguration wird zur ausklappbaren Leiste oben, die Ansichten stehen untereinander, ohne horizontales Scrollen der Seite. Die SVGs skalieren.
 
@@ -52,6 +53,9 @@ Mobil: Die Konfiguration wird zur ausklappbaren Leiste oben, die Ansichten stehe
 | | Booster S | 2 | ≥ 1, < S gesamt; Anzeige „Hauptpack = S − Booster“ und „gesamt = (vorne + hinten) + Booster“ |
 | | Booster Zellen je Lage | 2 | |
 | | Booster-Position | am Hauptplus | am Hauptplus / am Hauptminus |
+| | Einzelpacks im Booster | 1 | 1–4, höchstens Booster S; hintereinander in einem Gehäuse, Isolierlage dazwischen |
+| | Brücke im Booster | wie gleichmäßige Aufteilung | innen / außen; nur bei 2 Einzelpacks und gerader Gruppenzahl ab 4; die andere Lage teilt (h+1) + (h−1) auf |
+| | Lagen im Booster | wie der Teilpack, an dem er hängt | optional eigene Zahl 1–6 („Lagen im Booster selbst festlegen“) |
 | Fishpaper | siehe `02_FISHPAPER_EXPORT.md` | | |
 
 Schnellwahl-Buttons (Presets): **18S2P**, **20S2P**, **20S2P Splitpack (18S2P + 2S2P)**, **30S1P**, **32S1P** sowie „Zurücksetzen“.
@@ -63,7 +67,9 @@ Jede Änderung wird sofort neu berechnet (kein „Berechnen“-Button). Ungülti
 - **Draufsicht** (VORNE oben): Teilpacks als Rechtecke mit Zelllinien der größten Lage (bei vollen Lagen die untere) und einem Pfeil für die Serienrichtung.
   Dazu Hauptminus (blau) und Hauptplus (rot) als Fahnen an der richtigen Ecke,
   Brücke (orange): innen = kurzer Balken zwischen den Packs, außen = Kabel um die Seite.
-  Der Booster erscheint als gestrichelter Block mit Kabel. Maße stehen an den Kanten (B, L, Gesamtlänge).
+  Der Booster erscheint als gestrichelter Block mit Kabel.
+  Ein geteilter Booster erscheint als gestrichelte Blöcke hintereinander, mit Brücke wie im Hauptpack.
+  Maße stehen an den Kanten (B, L, Gesamtlänge).
   Ungleich breite Teilpacks werden bündig rechts gezeichnet (Option: links / mittig).
 - **Stirnseitenansichten**: je Teilpack V und H, **immer von außen betrachtet** (V gespiegelt), mit R/L-Markern.
   - Zellen als Kreise; Pol je Zelle als großes **+ / −** (rot/blau – Symbol und Farbe, nicht nur Farbe).
@@ -107,3 +113,4 @@ Jede Änderung wird sofort neu berechnet (kein „Berechnen“-Button). Ungülti
 9. Das PDF ist gedruckt maßhaltig (Kontrollquadrat), die Umwicklung wird gekachelt, die Stirnseiten sind korrekt gespiegelt und beschriftet.
 10. Mobil (375 px Breite) ist alles bedienbar, ohne horizontales Scrollen der Seite.
 11. Screenshots der fünf Presets (Playwright) liegen unter `docs/screenshots/`. Claude Code hat die vier mit bestätigter Skizze selbst mit den Skizzen verglichen. Für 30S1P gibt es keine Skizze; dort hat der Nutzer den Screenshot `docs/screenshots/30S1P.png` bestätigt.
+    Für den geteilten Booster hat der Nutzer `docs/screenshots/booster-2x1S2P.png` und `booster-2x2S2P.png` bestätigt.

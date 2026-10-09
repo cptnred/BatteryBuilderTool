@@ -1,6 +1,6 @@
 /** Ableitungen aus dem Formularzustand (Plan 06 §4.2, §4.3) – mit konkreten Zahlen. */
 import { describe, expect, it } from 'vitest';
-import { autoRows, bridgePosOfSplit, bridgeState, evenSplit } from '../src/state/derive';
+import { autoRows, bridgePosOfSplit, bridgeState, evenSplit, fitsLayers } from '../src/state/derive';
 
 describe('Aufteilung aus der Brückenwahl (§4.2)', () => {
   it.each([
@@ -75,5 +75,16 @@ describe('Zellen je Lage aus den Lagen (§4.3)', () => {
     for (let s = 4; s <= 40; s++)
       for (let p = 1; p <= 4; p++)
         expect(autoRows(bridgeState(s, 2, 'auto').split, p, 2, 'honeycomb').error, `${s}S${p}P`).toBeNull();
+  });
+});
+
+describe('fitsLayers (Plan 07 §4.3)', () => {
+  it('volle Lagen oder unvollständige Lage bei Wabe mit 2 Lagen', () => {
+    expect(fitsLayers(4, 2, 2, 'honeycomb')).toBe(true);
+    expect(fitsLayers(1, 1, 1, 'grid')).toBe(true);
+    expect(fitsLayers(3, 2, 2, 'honeycomb')).toBe(true);
+    expect(fitsLayers(3, 2, 2, 'grid')).toBe(false);
+    expect(fitsLayers(1, 1, 2, 'honeycomb')).toBe(false);
+    expect(fitsLayers(2, 1, 3, 'honeycomb')).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { adjacency, cellDistance, layerPlan } from './geometry';
-import type { BatteryConfig, Cell, Issue, Layout } from './types';
+import type { BatteryConfig, BoosterSpec, Cell, Issue, Layout } from './types';
 
 export const LIMITS = {
   series: { min: 1, max: 40 },
@@ -28,6 +28,32 @@ const isInt = (v: number) => Number.isInteger(v);
 const isPos = (v: number) => Number.isFinite(v) && v > 0;
 const isNonNeg = (v: number) => Number.isFinite(v) && v >= 0;
 
+/** Anzahl Einzelpacks des Boosters; eine unbrauchbare Angabe zählt wie 1 (validateInputs meldet sie). */
+function boosterCount(b: BoosterSpec): number {
+  const k = b.subPacks ?? 1;
+  return isInt(k) && k >= LIMITS.subPacks.min && k <= LIMITS.subPacks.max ? k : 1;
+}
+
+/** S je Einzelpack des Boosters, Stirnseite 1 -> 2 (Plan 07 §3.1). Ohne Booster leer. */
+export function boosterSplit(cfg: BatteryConfig): number[] {
+  const b = cfg.booster;
+  if (!b) return [];
+  const k = boosterCount(b);
+  if (k === 1) return [b.series];
+  if (b.seriesSplit && b.seriesSplit.length === k) return b.seriesSplit;
+  const base = Math.floor(b.series / k);
+  const rest = b.series - base * k;
+  return Array.from({ length: k }, (_, i) => base + (i < rest ? 1 : 0));
+}
+
+/** Zellen je Lage für den Einzelpack des Boosters an Position pos (Stirnseite 1 -> 2). */
+export function boosterPerRowOf(cfg: BatteryConfig, pos: number): number {
+  const b = cfg.booster!;
+  const k = boosterCount(b);
+  const o = b.cellsPerRowSplit;
+  return k > 1 && o && o.length === k && o[pos] > 0 ? o[pos] : b.cellsPerRow;
+}
+
 /**
  * Zusätzliche Eingabeprüfungen, die die Referenz nicht hatte. Sie greifen nur bei
  * Eingaben, mit denen der Solver sonst abstürzen oder Unsinn rechnen würde.
@@ -49,6 +75,13 @@ function validateInputs(cfg: BatteryConfig): Issue[] {
     const b = cfg.booster;
     if (!isInt(b.series) || b.series < 1 || b.series >= cfg.series) err('Booster S muss ≥ 1 und kleiner als S gesamt sein.');
     if (!isInt(b.cellsPerRow) || b.cellsPerRow < 1) err('Booster: Zellen je Lage muss eine ganze Zahl ≥ 1 sein.');
+    const k = b.subPacks ?? 1;
+    if (!isInt(k) || k < LIMITS.subPacks.min || k > LIMITS.subPacks.max)
+      err(`Booster: ${LIMITS.subPacks.min}–${LIMITS.subPacks.max} Einzelpacks erlaubt.`);
+    if (k > 1 && b.seriesSplit && b.seriesSplit.length === k && b.seriesSplit.some((s) => !isInt(s) || s < 1))
+      err('Booster: jeder Einzelpack braucht mindestens 1 Seriengruppe.');
+    if (k > 1 && b.cellsPerRowSplit && b.cellsPerRowSplit.some((n) => !Number.isFinite(n) || (n !== 0 && (!isInt(n) || n < 1))))
+      err('Booster: Zellen je Lage je Einzelpack müssen ganze Zahlen ≥ 1 sein (0 = Standard).');
   }
   const sp = cfg.spacing;
   if (sp.mode === 'fishpaper' && !isPos(sp.paperThickness)) err('Fishpaper-Stärke muss größer als 0 sein.');
@@ -80,15 +113,35 @@ export function validateConfig(cfg: BatteryConfig): Issue[] {
         msg: `Teilpack ${i + 1}: ${s * cfg.parallel} Zellen lassen sich nicht in volle Lagen à ${pr} aufteilen.`,
       });
   });
-  if (cfg.booster && layerPlan(cfg, cfg.booster.series * cfg.parallel, cfg.booster.cellsPerRow) === null)
-    out.push({ level: 'error', msg: 'Booster: Zellzahl passt nicht zu Zellen je Lage.' });
+  const bSplit = boosterSplit(cfg);
+  if (cfg.booster && bSplit.length === 1) {
+    if (layerPlan(cfg, cfg.booster.series * cfg.parallel, cfg.booster.cellsPerRow) === null)
+      out.push({ level: 'error', msg: 'Booster: Zellzahl passt nicht zu Zellen je Lage.' });
+  } else if (cfg.booster) {
+    const b = cfg.booster;
+    if (b.series < bSplit.length)
+      out.push({ level: 'error', msg: 'Booster: zu wenige Seriengruppen für die Anzahl der Einzelpacks.' });
+    if (bSplit.reduce((a, s) => a + s, 0) !== b.series)
+      out.push({ level: 'error', msg: `Booster: Aufteilung ${bSplit.join('+')} ergibt nicht ${b.series}S.` });
+    bSplit.forEach((s, i) => {
+      const pr = boosterPerRowOf(cfg, i);
+      // keine ganze Zahl ≥ 1 (z. B. NaN aus dem Formular): das meldet validateInputs, hier käme nur „à NaN“ dazu
+      if (!isInt(pr) || pr < 1) return;
+      if (layerPlan(cfg, s * cfg.parallel, pr) === null)
+        out.push({
+          level: 'error',
+          msg: `Booster-Einzelpack ${i + 1}: ${s * cfg.parallel} Zellen lassen sich nicht in volle Lagen à ${pr} aufteilen.`,
+        });
+    });
+  }
   if (cfg.subPacks > 1 && cfg.mainMinus.end === cfg.mainPlus.end)
     out.push({
       level: 'warning',
       msg: 'Hauptminus und Hauptplus auf derselben Stirnseite: ein Anschluss muss per Kabel geführt werden.',
     });
   const layers = Math.max(...split.map((s, i) => Math.ceil((s * cfg.parallel) / perRowOf(cfg, i))));
-  if (cfg.stacking === 'honeycomb' && layers > 2)
+  const boosterLayers = Math.max(0, ...bSplit.map((s, i) => Math.ceil((s * cfg.parallel) / boosterPerRowOf(cfg, i))));
+  if (cfg.stacking === 'honeycomb' && (layers > 2 || boosterLayers > 2))
     out.push({
       level: 'warning',
       msg: 'Wabe mit mehr als 2 Lagen: Verschaltung als Spalten-Serpentine – bitte Schweißplan prüfen.',

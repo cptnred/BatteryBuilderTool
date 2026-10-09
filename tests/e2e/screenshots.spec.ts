@@ -146,11 +146,100 @@ test('Booster: Lagenzahl wie der Teilpack, an dem er hängt', async ({ page }) =
   await page.getByRole('button', { name: '20S2P Splitpack (18S2P + 2S2P)', exact: true }).click();
   await openRow(page, 'booster');
   await expect(page.getByTestId('booster-rows')).toHaveText('Booster: 2 Lagen wie Pack B (hinten) → 2 Zellen je Lage');
-  await page.getByLabel('Booster S').fill('3');
+  await page.getByLabel('Booster S', { exact: true }).fill('3');
   await page.getByLabel('S gesamt').fill('21');
   await expect(page.getByTestId('booster-rows')).toContainText('3 Zellen je Lage');
   await page.screenshot({ path: `${SHOTS}/booster.png`, fullPage: true });
 });
+
+const SPLIT_PRESET = '20S2P Splitpack (18S2P + 2S2P)';
+
+test('Booster teilen: Einzelpacks, Brücke im Booster, eigene Lagenzahl', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto('/');
+  await page.getByRole('button', { name: SPLIT_PRESET, exact: true }).click();
+  await openRow(page, 'booster');
+  const row = page.getByTestId('row-booster');
+  await expect(row.getByRole('radio', { name: 'innen' })).toHaveCount(0);
+  await page.getByLabel('Einzelpacks im Booster').fill('2');
+  await expect(row.locator('summary')).toContainText('+ 2S (1 + 1) am Hauptplus');
+  await expect(row.getByRole('radio', { name: 'innen' })).toBeChecked();
+  await expect(row.getByRole('radio', { name: 'außen' })).toBeDisabled();
+  await expect(row.getByText('2S: zu wenige Gruppen für eine andere Aufteilung')).toBeVisible();
+  await expect(page.getByTestId('booster-rows')).toHaveText('Booster: 2 Lagen wie Pack B (hinten) → 1 Zelle je Lage');
+  await expect(page.locator('figure[data-pack="BOOST0"][data-face="V"]')).toBeVisible();
+  await expect(page.locator('figure[data-pack="BOOST1"][data-face="H"]')).toBeVisible();
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  // 4S: Brücke wählbar, natürlich außen (2 + 2), innen teilt 3 + 1
+  await page.getByLabel('Booster S', { exact: true }).fill('4');
+  await expect(row.getByText('gleichmäßig 2 + 2')).toBeVisible();
+  await expect(row.getByRole('radio', { name: 'außen' })).toBeChecked();
+  await row.getByRole('radio', { name: 'innen' }).check();
+  await expect(row.getByText('ungleich 3 + 1 – Einzelpacks unterschiedlich breit')).toBeVisible();
+  await expect(row.locator('summary')).toContainText('+ 4S (3 + 1) am Hauptplus');
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  // nur die Einzelpacks des Boosters sind ungleich breit: Auswahl „Bündig“ erscheint
+  await expect(page.getByRole('group', { name: 'Ausrichtung ungleich breiter Teilpacks' })).toBeVisible();
+  // eigene Lagenzahl
+  await page.getByLabel('Lagen im Booster selbst festlegen').check();
+  await page.getByLabel('Lagen im Booster', { exact: true }).fill('1');
+  await expect(page.getByTestId('booster-rows')).toHaveText('Booster: 1 Lage → 6 / 2 Zellen je Lage');
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Stücklisten' }).click();
+  await expect(page.getByText('Booster gesamt (inkl. 0,5 mm Zwischenlage)')).toBeVisible();
+});
+
+test('Booster teilen: Fehler klappt die Zeile „Splitpack“ auf', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: SPLIT_PRESET, exact: true }).click();
+  await openRow(page, 'booster');
+  await page.getByLabel('Einzelpacks im Booster').fill('2');
+  await page.getByTestId('row-booster').locator('summary').click();
+  await expect(page.getByTestId('row-booster')).toHaveJSProperty('open', false);
+  // 1P: je Einzelpack 1 Zelle, das passt nicht auf 2 Lagen
+  await page.getByLabel('P', { exact: true }).fill('1');
+  await expect(page.getByTestId('booster-error')).toBeVisible();
+  await expect(page.getByTestId('booster-error')).toHaveText(
+    'Booster A: 1 Zellen (1S1P) lassen sich nicht auf 2 Lagen aufteilen.',
+  );
+  await expect(page.locator('.stale-banner')).toContainText(
+    'Booster A: 1 Zellen (1S1P) lassen sich nicht auf 2 Lagen aufteilen.',
+  );
+  await expect(page.locator('.stale-banner')).not.toContainText('Booster-Einzelpack');
+  await expect(page.locator('.stale-banner')).not.toContainText('Booster: Zellen je Lage');
+  await page.getByLabel('Lagen im Booster selbst festlegen').check();
+  await page.getByLabel('Lagen im Booster', { exact: true }).fill('1');
+  await expect(page.locator('.stale-banner')).toHaveCount(0);
+  // Booster-S kleiner als die Zahl der Einzelpacks: Meldung des Kerns, Zeile trägt die Fehlermarke
+  await page.getByLabel('Booster S', { exact: true }).fill('1');
+  await expect(page.locator('.stale-banner')).toContainText('Booster: zu wenige Seriengruppen für die Anzahl der Einzelpacks.');
+  await expect(page.getByTestId('row-booster')).toHaveClass(/section--error/);
+});
+
+for (const shot of [
+  {
+    file: 'booster-2x1S2P',
+    boosterS: '2',
+    hint: '2S: zu wenige Gruppen für eine andere Aufteilung',
+    summary: '+ 2S (1 + 1) am Hauptplus',
+  },
+  { file: 'booster-2x2S2P', boosterS: '4', hint: 'gleichmäßig 2 + 2', summary: '+ 4S (2 + 2) am Hauptplus' },
+]) {
+  test(`Abnahme ${shot.file}`, async ({ page }) => {
+    // hoch genug, damit die ganze Zeile „Splitpack“ im Panel sichtbar ist
+    await page.setViewportSize({ width: 1600, height: 1400 });
+    await page.goto('/');
+    await page.getByRole('button', { name: SPLIT_PRESET, exact: true }).click();
+    await openRow(page, 'booster');
+    const row = page.getByTestId('row-booster');
+    await page.getByLabel('Booster S', { exact: true }).fill(shot.boosterS);
+    await page.getByLabel('Einzelpacks im Booster').fill('2');
+    await expect(row.getByText(shot.hint)).toBeVisible();
+    await expect(row.locator('summary')).toContainText(shot.summary);
+    await expect(page.locator('.stale-banner')).toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/${shot.file}.png`, fullPage: true });
+  });
+}
 
 test('30S1P: Brücke innen; „außen“ teilt 16 + 14, „innen“ stellt 15 + 15 wieder her', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });

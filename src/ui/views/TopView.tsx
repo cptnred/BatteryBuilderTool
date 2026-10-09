@@ -51,9 +51,11 @@ export const TopView = memo(function TopView({ layout, align }: { layout: Layout
               {p.label}
             </text>
             <line className="run" x1={p.arrow.x1} y1={p.arrow.y} x2={p.arrow.x2} y2={p.arrow.y} markerEnd="url(#arrow)" />
-            <text className="top-sub" x={p.x + p.w / 2} y={p.arrow.y + fs * 1.4} fontSize={fs * 0.7} textAnchor="middle">
-              Serienrichtung
-            </text>
+            {!p.compact && (
+              <text className="top-sub" x={p.x + p.w / 2} y={p.arrow.y + fs * 1.4} fontSize={fs * 0.7} textAnchor="middle">
+                Serienrichtung
+              </text>
+            )}
           </g>
         ))}
         {m.links.map((l, i) => (

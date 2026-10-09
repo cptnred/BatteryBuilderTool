@@ -56,7 +56,7 @@ export interface Part {
   /** stabil, z. B. 'face-V-P0' – Schlüssel für Auswahl/Anzahl */
   id: string;
   type: PartType;
-  /** SubPack.key oder 'ALL' (gemeinsame Umwicklung) */
+  /** SubPack.key oder 'ALL' bzw. 'BOOSTALL' (gemeinsame Umwicklung von Hauptpack bzw. Booster) */
   pack: string;
   name: string;
   count: number;

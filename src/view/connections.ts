@@ -10,9 +10,9 @@ export interface Connection {
   role: ConnRole;
 }
 
-/** "Pack A (vorne)" -> "Pack A", "Booster 2S2P" -> "Booster" */
+/** "Pack A (vorne)" -> "Pack A", "Booster 2S2P" -> "Booster", "Booster A (1S2P)" -> "Booster A" */
 export function shortName(p: SubPack): string {
-  return p.role === 'booster' ? 'Booster' : p.label.replace(/ \(.*\)$/, '');
+  return p.key === 'BOOST' ? 'Booster' : p.label.replace(/ \(.*\)$/, '');
 }
 
 /** Beschriftung einer Anschlussfahne an einem Start-/End-Streifen. null bei Serienstreifen. */
@@ -30,7 +30,7 @@ export function connectionOf(layout: Layout, pack: SubPack, st: Strip): Connecti
   const other = byKey.get(st.kind === 'end' ? br.to : br.from)!;
   if (br.kind === 'cable') {
     // Booster hängt am Plus-Ende (Kabel vom letzten Hauptpack) oder am Minus-Ende
-    const atPlus = br.to === 'BOOST';
+    const atPlus = byKey.get(br.to)!.role === 'booster';
     const role: ConnRole = atPlus ? 'plus' : 'minus';
     if (pack.role === 'booster')
       return atPlus

@@ -65,6 +65,53 @@ describe('Robustheit', () => {
     expect(solved).toBeGreaterThan(50);
   });
 
+  // Plan 07, Review Focus 2
+  it('300 Zufallskonfigurationen mit geteiltem Booster laufen komplett durch', () => {
+    const r = rng(7);
+    const pick = <T>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
+    for (let n = 0; n < 300; n++) {
+      const subPacks = 1 + Math.floor(r() * 4);
+      const bS = subPacks + Math.floor(r() * 4);
+      const split = Array.from({ length: subPacks }, (_, i) => Math.floor(bS / subPacks) + (i < bS % subPacks ? 1 : 0));
+      // 2P: 1 Lage -> 2·S Zellen je Lage, 2 Lagen -> S Zellen je Lage; beides geht immer auf
+      const perRow = split.map((s) => pick([s, 2 * s]));
+      const cfg: BatteryConfig = {
+        ...DEFAULT_CONFIG,
+        series: 18 + bS,
+        stacking: pick(['honeycomb', 'grid'] as const),
+        offsetSide: pick(['L', 'R'] as const),
+        booster: {
+          series: bS,
+          cellsPerRow: perRow[0],
+          position: pick(['plus', 'minus'] as const),
+          subPacks,
+          cellsPerRowSplit: perRow,
+        },
+        mainMinus: { end: pick(['V', 'H'] as const), side: pick(['L', 'R'] as const) },
+        mainPlus: { end: pick(['V', 'H'] as const), side: pick(['L', 'R'] as const) },
+      };
+      const L = solve(cfg);
+      expect(
+        L.issues.filter((i) => i.level === 'error'),
+        JSON.stringify(cfg.booster),
+      ).toEqual([]);
+      expect(L.packs.filter((p) => p.role === 'booster')).toHaveLength(subPacks);
+      expect(balanceTaps(L).map((t) => t.node)).toEqual([...Array(cfg.series + 1).keys()]);
+      assumptions(L);
+      topModel(L, pick(['left', 'right', 'center'] as const));
+      for (const p of L.packs) for (const f of ['V', 'H'] as const) faceModel(L, p, f);
+      const parts = buildParts(L, {
+        ...DEFAULT_FISHPAPER,
+        outlineFace: pick(['straight', 'tucked'] as const),
+        wrapMode: pick(['perPack', 'combined'] as const),
+        bridgeCutout: pick(['none', 'notch', 'slot'] as const),
+        includeTopBottom: pick([true, false]),
+        wrapFold: pick([0, 5]),
+      });
+      planSheets(parts, pick(['a4', 'a3', 'plotter'] as const), pick(['tile', 'split'] as const));
+    }
+  });
+
   it('unerfüllbarer Wunsch: verständliche Warnung, kein Fehler', () => {
     const L = solve({ ...DEFAULT_CONFIG, series: 10, subPacks: 1, cellsPerRow: 10 });
     expect(L.packs.length).toBe(1);

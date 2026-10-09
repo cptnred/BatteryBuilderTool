@@ -31,6 +31,7 @@ Für `npm run e2e` einmalig `npx playwright install chromium` ausführen oder ei
    Datenblättern, nach Bauform 21700/18650 gruppiert, oder „eigene Zelle“), S, P und **Brücke innen/außen**.
    Darunter die Liste **Aufbau** mit allem, was die App daraus ableitet: Teilpacks, Lagen, Stapelung, Anschlüsse,
    Abstände, Zellmaße, Splitpack, Zuschnitt. Jede Zeile zeigt ihren aktuellen Wert und klappt ihre Felder auf.
+   In „Splitpack“ lässt sich der Booster in bis zu 4 Einzelpacks teilen, mit eigener Brückenwahl und eigener Lagenzahl.
    Geänderte Zeilen tragen die Marke „angepasst“ und lassen sich einzeln zurücksetzen; Zeilen mit Fehler klappen
    von selbst auf. Jede Änderung wird sofort neu berechnet. Eingaben mit Komma oder Punkt.
    Ungültige Felder werden rot markiert; die Ansichten zeigen dann den letzten gültigen Stand, ausgegraut, mit der Fehlermeldung.
@@ -165,6 +166,21 @@ Fachliche Regeln stammen unverändert aus `docs/01_FACHKONZEPT.md`. Die folgende
 - Fishpaper „Ober-/Unterseite“ bleibt ein Rechteck in Packbreite. Bei unvollständiger Lage ist die Seite mit der
   kürzeren Lage eine Zelle schmaler; das Teil wird dort von Hand gekürzt.
 - Annahmen-Text: „beginnend oben/unten“ nennt jetzt den tatsächlichen Start des ersten Teilpacks.
+
+**Booster in Einzelpacks (Runde 4, docs/07_PLAN_BOOSTER_TEILEN.md; Rückfragen vom Nutzer entschieden)**
+- Die Einzelpacks stehen hintereinander in einem Gehäuse, Stirnseite an Stirnseite, mit Isolierlage dazwischen.
+  Sie heißen „Booster A“, „Booster B“ …; ihre Stirnseiten bleiben „Stirnseite 1“ und „Stirnseite 2“.
+- Die Anschlüsse des Boosters liegen außen. Die Brückenlage folgt wie im Hauptpack aus der Aufteilung; der Schalter
+  „Brücke im Booster“ ist nur bei 2 Einzelpacks und gerader Gruppenzahl ab 4 aktiv (2S als 1 + 1: immer innen).
+- Die Kette des Boosters beginnt links an Stirnseite 1; die Seite ist nicht wählbar. Ihre Kosten zählen nicht zu den
+  Kosten des Hauptpacks.
+- Lagen: Standard wie der Teilpack, an dem der Booster hängt; mit „Lagen im Booster selbst festlegen“ eine eigene Zahl.
+- Draufsicht: Beim geteilten Booster sitzen Kabel und SYSTEM-Fahne an der tatsächlichen Seite; beim ungeteilten bleibt
+  die Zeichnung der bestätigten Skizze. Schmale Einzelpacks tragen nur den Kurznamen.
+- Die Warnung „Wabe mit mehr als 2 Lagen“ erscheint jetzt auch, wenn nur der Booster mehr als 2 Lagen hat.
+- Annahmen: Hat der Booster bei Wabe eine andere Lagenzahl als der Teilpack, an dem er hängt, nennt ein eigener Satz
+  seine Verschaltung („Booster abweichend: …“); die übrigen Sätze zur Verschaltung beschreiben den Hauptpack.
+- Kein neues Speicherformat: Links und Dateien ohne die neuen Felder zeigen denselben Akku wie vorher.
 
 ## Offen (Stufe 2)
 

@@ -4,6 +4,7 @@ import type { ConfigState, PresetId } from '../src/state/config';
 import {
   boosterInfo,
   DEFAULT_STATE,
+  isBoosterRowIssue,
   isRowPlanIssue,
   matchingPreset,
   mergeWithDefaults,
@@ -208,8 +209,21 @@ describe('Lagen und Brückenwahl (Plan 06 §4)', () => {
   });
 
   it('Booster mit unvollständiger Lage: 3S1P = 2 + 1', () => {
-    const s = set(DEFAULT_STATE, { series: 33, parallel: 1, boosterEnabled: true, booster: { series: 3, position: 'plus' } });
-    expect(boosterInfo(s)).toEqual({ layers: 2, packKey: 'P1', packLabel: 'Pack B (hinten)', cellsPerRow: 2, error: null });
+    const s = set(DEFAULT_STATE, {
+      series: 33,
+      parallel: 1,
+      boosterEnabled: true,
+      booster: { ...DEFAULT_STATE.booster, series: 3 },
+    });
+    expect(boosterInfo(s)).toEqual({
+      layers: 2,
+      packKey: 'P1',
+      packLabel: 'Pack B (hinten)',
+      cellsPerRow: 2,
+      perRow: [2],
+      split: [3],
+      error: null,
+    });
     const L = solve(toBatteryConfig(s));
     expect(L.issues.filter((i) => i.level === 'error')).toEqual([]);
     expect(L.packs.find((p) => p.role === 'booster')!.cells).toHaveLength(3);
@@ -239,7 +253,15 @@ describe('Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §
 
   it('Fixture 20S2P Splitpack: 2S2P bei 2 Lagen -> 2 je Lage', () => {
     expect(toBatteryConfig(split).booster).toEqual({ series: 2, cellsPerRow: 2, position: 'plus' });
-    expect(boosterInfo(split)).toEqual({ layers: 2, packKey: 'P1', packLabel: 'Pack B (hinten)', cellsPerRow: 2, error: null });
+    expect(boosterInfo(split)).toEqual({
+      layers: 2,
+      packKey: 'P1',
+      packLabel: 'Pack B (hinten)',
+      cellsPerRow: 2,
+      perRow: [2],
+      split: [2],
+      error: null,
+    });
   });
 
   it('Plus-Ende = letzter, Minus-Ende = erster Teilpack der Kette (Kette ab mainMinus.end)', () => {
@@ -248,7 +270,7 @@ describe('Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §
       type: 'set',
       patch: {
         series: 22,
-        booster: { series: 4, position: 'plus' },
+        booster: { ...DEFAULT_STATE.booster, series: 4 },
         seriesSplitManual: true,
         seriesSplit: [10, 8],
         cellsPerRowSplitManual: true,
@@ -257,7 +279,7 @@ describe('Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §
     });
     // Minus vorne: Kette vorne -> hinten, Plus-Ende = hinten (4 Lagen) -> 8 Zellen / 4 = 2 je Lage
     expect(boosterInfo(base)).toMatchObject({ layers: 4, packKey: 'P1', cellsPerRow: 2 });
-    const minus = reducer(base, { type: 'set', patch: { booster: { series: 4, position: 'minus' } } });
+    const minus = reducer(base, { type: 'set', patch: { booster: { ...DEFAULT_STATE.booster, series: 4, position: 'minus' } } });
     expect(boosterInfo(minus)).toMatchObject({ layers: 2, packKey: 'P0', cellsPerRow: 4 });
     // Minus hinten: Kette hinten -> vorne, Plus-Ende = vorne
     const rev = reducer(base, { type: 'set', patch: { mainMinus: { end: 'H', side: 'R' }, mainPlus: { end: 'V', side: 'R' } } });
@@ -269,7 +291,7 @@ describe('Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §
   it('geht nicht auf -> Fehlermeldung am Booster', () => {
     const s = reducer(split, {
       type: 'set',
-      patch: { series: 20, parallel: 1, layers: 3, booster: { series: 2, position: 'plus' } },
+      patch: { series: 20, parallel: 1, layers: 3, booster: { ...DEFAULT_STATE.booster, series: 2 } },
     });
     // Hauptpack 18S1P, 9 + 9 Zellen à 3 je Lage -> 3 Lagen; Booster 2S1P = 2 Zellen auf 3 Lagen geht nicht
     expect(boosterInfo(s)!.error).toBe(
@@ -280,8 +302,150 @@ describe('Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §
 
   it('alte Links mit booster.cellsPerRow: Wert wird ignoriert', () => {
     const s = mergeWithDefaults({ series: 20, boosterEnabled: true, booster: { series: 2, cellsPerRow: 4, position: 'plus' } });
-    expect(s.booster).toEqual({ series: 2, position: 'plus' });
+    expect(s.booster).toEqual({ series: 2, position: 'plus', subPacks: 1, bridge: 'auto', layersManual: false, layers: 2 });
     expect(toBatteryConfig(s).booster!.cellsPerRow).toBe(2);
+  });
+});
+
+describe('Geteilter Booster (Plan 07 §4)', () => {
+  const set = (s: ConfigState, patch: Partial<ConfigState>) => reducer(s, { type: 'set', patch });
+  const boost = (s: ConfigState, patch: Partial<ConfigState['booster']>) => set(s, { booster: { ...s.booster, ...patch } });
+  const split = reducer(DEFAULT_STATE, { type: 'preset', id: '20S2P-split' });
+  const errorsOf = (s: ConfigState) =>
+    solve(toBatteryConfig(s))
+      .issues.filter((i) => i.level === 'error')
+      .map((i) => i.msg);
+
+  it('Standardwerte; das Preset bleibt unverändert und wird erkannt', () => {
+    expect(DEFAULT_STATE.booster).toEqual({
+      series: 2,
+      position: 'plus',
+      subPacks: 1,
+      bridge: 'auto',
+      layersManual: false,
+      layers: 2,
+    });
+    expect(toBatteryConfig(split).booster).toEqual({ series: 2, cellsPerRow: 2, position: 'plus' });
+    expect(matchingPreset(split)).toBe('20S2P-split');
+  });
+
+  it('2 Einzelpacks, 2S: 1 + 1, gleiche Lagenzahl wie Pack B', () => {
+    const s = boost(split, { subPacks: 2 });
+    expect(toBatteryConfig(s).booster).toEqual({ series: 2, cellsPerRow: 1, position: 'plus', subPacks: 2 });
+    expect(boosterInfo(s)).toEqual({
+      layers: 2,
+      packKey: 'P1',
+      packLabel: 'Pack B (hinten)',
+      cellsPerRow: 1,
+      perRow: [1, 1],
+      split: [1, 1],
+      error: null,
+    });
+    expect(errorsOf(s)).toEqual([]);
+    expect(solve(toBatteryConfig(s)).packs.map((p) => p.key)).toEqual(['P0', 'P1', 'BOOST0', 'BOOST1']);
+    expect(matchingPreset(s)).toBeNull();
+  });
+
+  it('Brückenwahl im Booster: 4S außen 2 + 2, innen 3 + 1; Klick auf die natürliche Lage = automatisch', () => {
+    const s4 = boost(split, { series: 4, subPacks: 2 });
+    expect(toBatteryConfig(s4).booster).toEqual({ series: 4, cellsPerRow: 2, position: 'plus', subPacks: 2 });
+    const inner = reducer(s4, { type: 'boosterBridge', pos: 'inner' });
+    expect(inner.booster.bridge).toBe('inner');
+    expect(toBatteryConfig(inner).booster).toEqual({
+      series: 4,
+      cellsPerRow: 3,
+      position: 'plus',
+      subPacks: 2,
+      seriesSplit: [3, 1],
+      cellsPerRowSplit: [3, 1],
+    });
+    expect(solve(toBatteryConfig(inner)).bridges.at(-1)).toMatchObject({ from: 'BOOST0', to: 'BOOST1', kind: 'inner', node: 19 });
+    expect(reducer(inner, { type: 'boosterBridge', pos: 'outer' }).booster.bridge).toBe('auto');
+    // 6S: natürlich innen 3 + 3, außen 4 + 2 (Hauptpack 14S = 7 + 7)
+    const s6 = boost(split, { series: 6, subPacks: 2 });
+    expect(boosterInfo(s6)!.split).toEqual([3, 3]);
+    const outer = reducer(s6, { type: 'boosterBridge', pos: 'outer' });
+    expect(outer.booster.bridge).toBe('outer');
+    expect(boosterInfo(outer)!.split).toEqual([4, 2]);
+    expect(solve(toBatteryConfig(outer)).bridges.at(-1)).toMatchObject({ kind: 'outer', node: 18 });
+  });
+
+  it('3 Einzelpacks: gleichmäßig, Rest nach vorne; Zellen je Lage je Einzelpack', () => {
+    const s = boost(split, { series: 4, subPacks: 3 });
+    expect(toBatteryConfig(s).booster).toEqual({
+      series: 4,
+      cellsPerRow: 2,
+      position: 'plus',
+      subPacks: 3,
+      cellsPerRowSplit: [2, 1, 1],
+    });
+    expect(errorsOf(s)).toEqual([]);
+  });
+
+  it('eigene Lagenzahl', () => {
+    const s = boost(split, { layersManual: true, layers: 1 });
+    expect(boosterInfo(s)).toMatchObject({ layers: 1, cellsPerRow: 4, perRow: [4], split: [2], error: null });
+    expect(toBatteryConfig(s).booster).toEqual({ series: 2, cellsPerRow: 4, position: 'plus' });
+    // ohne Haken wirkt booster.layers nicht
+    expect(boosterInfo(boost(split, { layers: 1 }))).toMatchObject({ layers: 2, cellsPerRow: 2 });
+  });
+
+  it('geht nicht auf: Meldung mit Buchstabe, kein Layout; eigene Lagenzahl behebt es', () => {
+    // Hauptpack 18S1P = 9 + 9 (je 5 + 4 Zellen); Booster 2S1P als 1 + 1: je 1 Zelle passt nicht auf 2 Lagen
+    const p1 = boost(set(split, { parallel: 1 }), { subPacks: 2 });
+    expect(boosterInfo(p1)!.error).toBe('Booster A: 1 Zellen (1S1P) lassen sich nicht auf 2 Lagen aufteilen.');
+    expect(Number.isNaN(toBatteryConfig(p1).booster!.cellsPerRow)).toBe(true);
+    expect(solve(toBatteryConfig(p1)).packs).toEqual([]);
+    const fixed = boost(p1, { layersManual: true, layers: 1 });
+    expect(boosterInfo(fixed)).toMatchObject({ layers: 1, perRow: [1, 1], error: null });
+    expect(errorsOf(fixed)).toEqual([]);
+    // 1 Einzelpack mit eigener Lagenzahl: ohne Buchstabe und ohne den Verweis auf den Teilpack
+    const single = boost(set(split, { parallel: 1 }), { layersManual: true, layers: 3 });
+    expect(boosterInfo(single)!.error).toBe('Booster: 2 Zellen (2S1P) lassen sich nicht auf 3 Lagen aufteilen.');
+  });
+
+  it('Teilpack geht nicht auf (Zellen je Lage manuell): keine Booster-Meldung mit „NaN“', () => {
+    const s = set(boost(split, { subPacks: 2 }), { cellsPerRowManual: true, cellsPerRow: 7 });
+    expect(boosterInfo(s)).toMatchObject({ perRow: null, error: null });
+    expect(errorsOf(s)).toEqual([
+      'Teilpack 1: 18 Zellen lassen sich nicht in volle Lagen à 7 aufteilen.',
+      'Teilpack 2: 18 Zellen lassen sich nicht in volle Lagen à 7 aufteilen.',
+      'Booster: Zellen je Lage muss eine ganze Zahl ≥ 1 sein.',
+    ]);
+  });
+
+  it('Folgefehler des Kerns zum Booster werden erkannt', () => {
+    expect(isBoosterRowIssue('Booster: Zellen je Lage muss eine ganze Zahl ≥ 1 sein.')).toBe(true);
+    expect(isBoosterRowIssue('Booster-Einzelpack 1: 1 Zellen lassen sich nicht in volle Lagen à NaN aufteilen.')).toBe(true);
+    expect(isBoosterRowIssue('Booster: zu wenige Seriengruppen für die Anzahl der Einzelpacks.')).toBe(false);
+  });
+
+  // Review Focus 3
+  it('gespeicherter Stand: unbrauchbare Werte fallen auf den Standard, gültige bleiben', () => {
+    const bad = mergeWithDefaults({
+      boosterEnabled: true,
+      booster: { series: 2, position: 'plus', subPacks: 9, bridge: 'x', layersManual: 'yes', layers: 0 },
+    });
+    expect(bad.booster).toEqual(DEFAULT_STATE.booster);
+    const good = mergeWithDefaults({
+      series: 20,
+      boosterEnabled: true,
+      booster: { series: 4, position: 'minus', subPacks: 2, bridge: 'inner', layersManual: true, layers: 1 },
+    });
+    expect(good.booster).toEqual({ series: 4, position: 'minus', subPacks: 2, bridge: 'inner', layersManual: true, layers: 1 });
+    expect(decodeState(encodeState(good))).toEqual(good);
+  });
+
+  it('Patch ohne die neuen Felder: Standardwerte', () => {
+    const patch = { booster: { series: 3, position: 'minus' } } as unknown as Partial<ConfigState>;
+    expect(set(DEFAULT_STATE, patch).booster).toEqual({
+      series: 3,
+      position: 'minus',
+      subPacks: 1,
+      bridge: 'auto',
+      layersManual: false,
+      layers: 2,
+    });
   });
 });
 

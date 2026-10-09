@@ -25,18 +25,23 @@ export interface Dimensions {
   packs: { key: string; label: string; width: number; height: number; length: number }[];
   /** Hauptpack ohne Booster: max. Breite × max. Höhe × (Summe Längen + Zwischenlagen) */
   main: { width: number; height: number; length: number };
+  /** Booster gesamt, gebildet wie main; fehlt ohne Booster */
+  booster?: { width: number; height: number; length: number };
 }
 
 export function dimensions(layout: Layout): Dimensions {
-  const main = layout.packs.filter((p) => p.role === 'main');
-  return {
+  const total = (ps: SubPack[]) => ({
+    width: Math.max(0, ...ps.map((p) => p.width)),
+    height: Math.max(0, ...ps.map((p) => p.height)),
+    length: ps.reduce((a, p) => a + p.length, 0) + Math.max(0, ps.length - 1) * layout.config.packGap,
+  });
+  const boost = layout.packs.filter((p) => p.role === 'booster');
+  const out: Dimensions = {
     packs: layout.packs.map((p) => ({ key: p.key, label: p.label, width: p.width, height: p.height, length: p.length })),
-    main: {
-      width: Math.max(0, ...main.map((p) => p.width)),
-      height: Math.max(0, ...main.map((p) => p.height)),
-      length: main.reduce((a, p) => a + p.length, 0) + Math.max(0, main.length - 1) * layout.config.packGap,
-    },
+    main: total(layout.packs.filter((p) => p.role === 'main')),
   };
+  if (boost.length) out.booster = total(boost);
+  return out;
 }
 
 export interface NickelBomRow {

@@ -9,6 +9,7 @@
  *    0       Teilpacks …
  */
 import type { Face, Layout, Side, SubPack } from '../core';
+import { shortName } from './connections';
 import { widestLayerCells } from './layers';
 
 export type TopAlign = 'right' | 'left' | 'center';
@@ -17,6 +18,8 @@ export interface TopPack {
   key: string;
   label: string;
   booster: boolean;
+  /** schmaler Einzelpack eines geteilten Boosters: Kurzname, keine Zeile „Serienrichtung“ */
+  compact: boolean;
   x: number;
   y: number;
   w: number;
@@ -69,12 +72,14 @@ const sideWord = (s: Side) => (s === 'L' ? 'links' : 'rechts');
 
 export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
   const cfg = layout.config;
-  const main = layout.packs.filter((p) => p.role === 'main').sort((a, b) => a.position - b.position);
-  const booster = layout.packs.find((p) => p.role === 'booster');
+  const byPos = (a: SubPack, b: SubPack) => a.position - b.position;
+  const main = layout.packs.filter((p) => p.role === 'main').sort(byPos);
+  const boost = layout.packs.filter((p) => p.role === 'booster').sort(byPos);
   const maxW = Math.max(...main.map((p) => p.width));
   const fs = Math.max(5, maxW / 22);
   const gapVis = Math.max(cfg.packGap, fs * 0.6);
-  const xOf = (w: number) => (align === 'left' ? 0 : align === 'right' ? maxW - w : (maxW - w) / 2);
+  // Lage eines Blocks der Breite w in einem Streifen der Breite total
+  const alignIn = (total: number, w: number) => (align === 'left' ? 0 : align === 'right' ? total - w : (total - w) / 2);
 
   const R = cfg.cell.diameter / 2;
   const toTop = (p: SubPack, x: number, y: number): TopPack => {
@@ -85,10 +90,12 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
     const a0 = x + p.width * 0.85;
     const a1 = x + p.width * 0.15;
     const ay = y + p.length * 0.62;
+    const compact = p.role === 'booster' && boost.length > 1 && p.width < fs * 4.5;
     return {
       key: p.key,
-      label: p.label,
+      label: compact ? shortName(p) : p.label,
       booster: p.role === 'booster',
+      compact,
       x,
       y,
       w: p.width,
@@ -101,12 +108,24 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
   const packs: TopPack[] = [];
   let y = 0;
   for (const p of main) {
-    packs.push(toTop(p, xOf(p.width), y));
+    packs.push(toTop(p, alignIn(maxW, p.width), y));
     y += p.length + gapVis;
   }
   const mainEnd = y - gapVis;
-  const byKey = new Map(packs.map((t) => [t.key, t]));
   const packByKey = new Map(layout.packs.map((p) => [p.key, p]));
+
+  // Booster: gestrichelte Blöcke hinter (am Hauptplus) oder vor (am Hauptminus) dem Hauptpack, als Ganzes rechtsbündig zu ihm
+  const cable = layout.bridges.find((b) => b.kind === 'cable');
+  const atPlus = !!cable && packByKey.get(cable.to)!.role === 'booster';
+  const boostW = Math.max(0, ...boost.map((p) => p.width));
+  const boostLen = boost.reduce((a, p) => a + p.length, 0) + Math.max(0, boost.length - 1) * gapVis;
+  const boostY = atPlus ? mainEnd + fs * 5 : -fs * 5 - boostLen;
+  let by = boostY;
+  for (const p of boost) {
+    packs.push(toTop(p, maxW - boostW + alignIn(boostW, p.width), by));
+    by += p.length + gapVis;
+  }
+  const byKey = new Map(packs.map((t) => [t.key, t]));
 
   // Punkt an einer Stirnseite (V = Vorderkante, H = Hinterkante) auf einer Seite (L/R)
   const inset = fs * 0.8;
@@ -117,7 +136,7 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
 
   const flags: TopFlag[] = [];
   const links: TopLink[] = [];
-  const mainChain = layout.chain.filter((k) => k !== 'BOOST');
+  const mainChain = layout.chain.filter((k) => packByKey.get(k)!.role === 'main');
   const firstMain = packByKey.get(mainChain[0])!;
   const lastMain = packByKey.get(mainChain[mainChain.length - 1])!;
   const stem = fs * 2.2;
@@ -130,8 +149,8 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
       y2: face === 'V' ? pt.y - stem : pt.y + stem,
       anchor: side === 'L' ? 'start' : 'end',
     });
-  const boosterAtMinus = !!booster && cfg.booster?.position === 'minus';
-  const boosterAtPlus = !!booster && !boosterAtMinus;
+  const boosterAtMinus = boost.length > 0 && !atPlus;
+  const boosterAtPlus = boost.length > 0 && atPlus;
   // Am Booster-Ende übernimmt das Kabel die Beschriftung
   if (!boosterAtMinus)
     flagAt(
@@ -145,7 +164,8 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
     flagAt(edgePoint(lastMain.key, lastMain.endFace, lastMain.endSide), lastMain.endFace, lastMain.endSide, 'HAUPT +', 'plus');
 
   // Brücken zwischen Teilpacks
-  let outerCount = 0;
+  // gestaffelte Außenkabel: Hauptpack und Booster zählen getrennt, sie liegen nicht nebeneinander
+  const outerCount = { main: 0, booster: 0 };
   let leftNeed = 0;
   let rightNeed = 0;
   for (const br of layout.bridges.filter((b) => b.kind !== 'cable')) {
@@ -171,9 +191,9 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
       if (isLeft) leftNeed = Math.max(leftNeed, fs * 9);
       else rightNeed = Math.max(rightNeed, fs * 9);
     } else {
-      outerCount++;
+      const n = ++outerCount[packByKey.get(br.from)!.role];
       const sameSide = br.fromSide === br.toSide;
-      const outX = edgeX + (isLeft ? -1 : 1) * fs * (1.4 + 1.6 * (outerCount - 1));
+      const outX = edgeX + (isLeft ? -1 : 1) * fs * (1.4 + 1.6 * (n - 1));
       const dyA = br.fromFace === 'V' ? -fs * 0.7 : fs * 0.7;
       const dyB = br.toFace === 'V' ? -fs * 0.7 : fs * 0.7;
       const points = sameSide
@@ -203,28 +223,37 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
           vertical: true,
         },
       });
-      if (isLeft) leftNeed = Math.max(leftNeed, fs * (2.5 + 1.6 * outerCount));
-      else rightNeed = Math.max(rightNeed, fs * (2.5 + 1.6 * outerCount));
+      if (isLeft) leftNeed = Math.max(leftNeed, fs * (2.5 + 1.6 * n));
+      else rightNeed = Math.max(rightNeed, fs * (2.5 + 1.6 * n));
     }
   }
 
-  // Booster: separater, gestrichelter Block mit Kabel
+  // Booster: Kabel zum Hauptpack und SYSTEM-Fahne
   let minY = -fs * 8;
   let maxY = mainEnd + fs * 5.2;
-  if (booster) {
-    const cable = layout.bridges.find((b) => b.kind === 'cable')!;
-    const atPlus = cable.to === 'BOOST';
-    const gap = fs * 5;
-    const by = atPlus ? mainEnd + gap : -gap - booster.length;
-    const t = toTop(booster, maxW - booster.width, by);
-    packs.push(t);
+  if (boost.length && cable) {
+    const firstB = boost[0];
+    const lastB = boost[boost.length - 1];
     const mainPack = atPlus ? lastMain : firstMain;
-    const face = atPlus ? mainPack.endFace : mainPack.startFace;
-    const side = atPlus ? mainPack.endSide : mainPack.startSide;
-    const p0 = edgePoint(mainPack.key, face, side);
-    const bx = t.x + fs * 1.2;
-    const boosterEdgeY = atPlus ? by : by + booster.length;
-    const midY = (p0.y + boosterEdgeY) / 2;
+    const p0 = edgePoint(
+      mainPack.key,
+      atPlus ? mainPack.endFace : mainPack.startFace,
+      atPlus ? mainPack.endSide : mainPack.startSide,
+    );
+    // Ende der Booster-Kette, an dem das Kabel hängt, und das andere mit der SYSTEM-Fahne
+    const start = { key: firstB.key, face: firstB.startFace, side: firstB.startSide };
+    const end = { key: lastB.key, face: lastB.endFace, side: lastB.endSide };
+    const near = atPlus ? start : end;
+    const far = atPlus ? end : start;
+    const nearT = byKey.get(near.key)!;
+    const farT = byKey.get(far.key)!;
+    // Ungeteilter Booster: schematisch wie in der bestätigten Skizze (Kabel links an der nahen Kante, Fahne rechts
+    // an der fernen). Geteilt: an der tatsächlichen Seite und Stirnseite (Plan 07 §6).
+    const split = boost.length > 1;
+    const pc = split
+      ? edgePoint(near.key, near.face, near.side)
+      : { x: nearT.x + fs * 1.2, y: atPlus ? nearT.y : nearT.y + nearT.l };
+    const midY = (p0.y + pc.y) / 2;
     const role = atPlus ? 'plus' : 'minus';
     links.push({
       kind: 'cable',
@@ -232,17 +261,18 @@ export function topModel(layout: Layout, align: TopAlign = 'right'): TopModel {
       points: [
         { x: p0.x, y: p0.y },
         { x: p0.x, y: midY },
-        { x: bx, y: midY },
-        { x: bx, y: boosterEdgeY },
+        { x: pc.x, y: midY },
+        { x: pc.x, y: pc.y },
       ],
       lines: [atPlus ? `HAUPT + (B${cable.node}) → Booster −` : `HAUPT − (B${cable.node}) ← Booster +`],
-      textPos: { x: Math.min(p0.x, bx) - fs * 0.5, y: midY + fs * 0.3, anchor: 'end' },
+      textPos: { x: Math.min(p0.x, pc.x) - fs * 0.5, y: midY + fs * 0.3, anchor: 'end' },
     });
-    const sysPt = { x: t.x + t.w - inset, y: atPlus ? by + booster.length : by };
-    flagAt(sysPt, atPlus ? 'H' : 'V', 'R', atPlus ? `SYSTEM + (B${layout.totalS})` : 'SYSTEM − (B0)', role);
-    if (atPlus) maxY = by + booster.length + fs * 5.2;
-    else minY = by - fs * 8;
-    leftNeed = Math.max(leftNeed, fs * 13 - (maxW - booster.width));
+    const sysText = atPlus ? `SYSTEM + (B${layout.totalS})` : 'SYSTEM − (B0)';
+    if (split) flagAt(edgePoint(far.key, far.face, far.side), far.face, far.side, sysText, role);
+    else flagAt({ x: farT.x + farT.w - inset, y: atPlus ? farT.y + farT.l : farT.y }, atPlus ? 'H' : 'V', 'R', sysText, role);
+    if (atPlus) maxY = boostY + boostLen + fs * 5.2;
+    else minY = boostY - fs * 8;
+    leftNeed = Math.max(leftNeed, fs * 13 - (maxW - boostW));
   }
 
   const firstY = Math.min(...packs.map((p) => p.y));

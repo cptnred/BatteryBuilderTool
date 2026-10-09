@@ -6,6 +6,7 @@ import type { BatteryConfig, BoosterSpec, CellDatasheet, CellSpec, Side, Spacing
 import {
   DEFAULT_CELL_ID,
   DEFAULT_CONFIG,
+  LIMITS,
   cellSpecFromDatasheet,
   datasheetById,
   layerPlan,
@@ -15,7 +16,7 @@ import {
 } from '../core';
 import type { FishpaperOptions } from '../fishpaper/types';
 import type { BridgeChoice, BridgePos, RowPlan } from './derive';
-import { LAYER_LIMITS, autoRows, bridgeState } from './derive';
+import { LAYER_LIMITS, autoRows, bridgeState, fitsLayers } from './derive';
 
 export type { FishpaperOptions };
 
@@ -31,8 +32,28 @@ export interface ExportOptions {
   oversize: OversizeMode;
 }
 
-/** Booster-Eingaben ohne Zellen je Lage (Plan §3) */
-export type BoosterInput = Omit<BoosterSpec, 'cellsPerRow'>;
+/** Booster-Eingaben; Aufteilung und Zellen je Lage werden abgeleitet (Plan 04 §3, Plan 07 §4) */
+export interface BoosterInput {
+  series: number;
+  position: 'plus' | 'minus';
+  /** Einzelpacks im Booster, hintereinander in einem Gehäuse (1–4) */
+  subPacks: number;
+  /** Brückenlage zwischen 2 Einzelpacks: bestimmt die Aufteilung wie im Hauptpack */
+  bridge: BridgeChoice;
+  /** „Lagen im Booster selbst festlegen“; sonst gilt die Lagenzahl des Teilpacks, an dem der Booster hängt */
+  layersManual: boolean;
+  /** Lagen je Einzelpack; wirkt nur mit layersManual */
+  layers: number;
+}
+
+export const DEFAULT_BOOSTER: BoosterInput = {
+  series: 2,
+  position: 'plus',
+  subPacks: 1,
+  bridge: 'auto',
+  layersManual: false,
+  layers: 2,
+};
 
 export interface ConfigState {
   cellType: CellType;
@@ -71,7 +92,7 @@ export interface ConfigState {
   mainMinus: TerminalSpec;
   mainPlus: TerminalSpec;
   boosterEnabled: boolean;
-  /** Zellen je Lage des Boosters werden berechnet (gleiche Lagenzahl wie der Teilpack, an dem er hängt) */
+  /** Aufteilung und Zellen je Lage des Boosters werden berechnet (Plan 07 §4) */
   booster: BoosterInput;
   /** Draufsicht: ungleich breite Teilpacks bündig */
   topAlign: 'right' | 'left' | 'center';
@@ -123,7 +144,7 @@ export const DEFAULT_STATE: ConfigState = {
   mainMinus: { ...DEFAULT_CONFIG.mainMinus },
   mainPlus: { ...DEFAULT_CONFIG.mainPlus },
   boosterEnabled: false,
-  booster: { series: 2, position: 'plus' },
+  booster: DEFAULT_BOOSTER,
   topAlign: 'right',
   fishpaper: DEFAULT_FISHPAPER,
   export: { pageFormat: 'a4', oversize: 'tile' },
@@ -138,7 +159,7 @@ export const PRESETS: { id: PresetId; label: string; patch: Partial<ConfigState>
   {
     id: '20S2P-split',
     label: '20S2P Splitpack (18S2P + 2S2P)',
-    patch: { series: 20, boosterEnabled: true, booster: { series: 2, position: 'plus' } },
+    patch: { series: 20, boosterEnabled: true, booster: DEFAULT_BOOSTER },
   },
   { id: '30S1P', label: '30S1P', patch: { series: 30, parallel: 1 } },
   { id: '32S1P', label: '32S1P', patch: { series: 32, parallel: 1 } },
@@ -177,18 +198,22 @@ export const isRowPlanIssue = (msg: string) =>
 const nz = (v: number | null) => (v === null ? NaN : v);
 
 export interface BoosterRows {
-  /** Lagenzahl des Teilpacks, an dem der Booster hängt */
+  /** wirksame Lagenzahl: eigene (booster.layersManual) oder die des Teilpacks, an dem der Booster hängt */
   layers: number;
-  /** Key des Teilpacks ('P0' …) und Anzeigename */
+  /** Key des Teilpacks, an dem der Booster hängt ('P0' …), und Anzeigename */
   packKey: string;
   packLabel: string;
-  /** Zellen je Lage Booster; null = geht nicht auf */
+  /** Zellen je Lage des ersten Einzelpacks; null = geht nicht auf */
   cellsPerRow: number | null;
+  /** Zellen je Lage je Einzelpack; null = geht nicht auf */
+  perRow: number[] | null;
+  /** S je Einzelpack, Stirnseite 1 -> 2 */
+  split: number[];
   error: string | null;
 }
 
 /**
- * Booster: gleiche Lagenzahl wie der Teilpack, an dem er hängt (Plan §3).
+ * Booster: Aufteilung aus der Brückenwahl, Lagen eigen oder wie der Teilpack, an dem er hängt (Plan 04 §3, Plan 07 §4).
  * Plus-Ende = letzter Teilpack der Kette, Minus-Ende = erster; die Kette läuft ab mainMinus.end.
  */
 export function boosterRows(cfg: BatteryConfig, booster: BoosterInput): BoosterRows {
@@ -199,22 +224,39 @@ export function boosterRows(cfg: BatteryConfig, booster: BoosterInput): BoosterR
   const perRow = perRowOf(cfg, pos);
   const packKey = `P${pos}`;
   const packLabel = subPackLabel(n, pos);
-  // Teilpack selbst geht nicht auf oder hat keine Zellen -> dessen Fehlermeldung reicht
-  if (packCells < 1 || layerPlan(cfg, packCells, perRow) === null)
-    return { layers: packCells / perRow, packKey, packLabel, cellsPerRow: null, error: null };
-  const layers = Math.ceil(packCells / perRow);
-  const cells = booster.series * cfg.parallel;
-  const cellsPerRow = Math.ceil(cells / layers);
-  // gültig: volle Lagen oder unvollständige Lage (Plan 06 §3.1), jeweils mit genau dieser Lagenzahl
-  if (layerPlan(cfg, cells, cellsPerRow) === null || Math.ceil(cells / cellsPerRow) !== layers)
-    return {
-      layers,
-      packKey,
-      packLabel,
-      cellsPerRow: null,
-      error: `Booster: ${cells} Zellen (${booster.series}S${cfg.parallel}P) lassen sich nicht auf ${layers} Lagen aufteilen (gleiche Lagenzahl wie der Teilpack, an dem der Booster hängt).`,
-    };
-  return { layers, packKey, packLabel, cellsPerRow, error: null };
+  const split = bridgeState(booster.series, booster.subPacks, booster.bridge).split;
+  const none = (layers: number, error: string | null): BoosterRows => ({
+    layers,
+    packKey,
+    packLabel,
+    cellsPerRow: null,
+    perRow: null,
+    split,
+    error,
+  });
+  let layers = booster.layers;
+  if (!booster.layersManual) {
+    // Teilpack selbst geht nicht auf oder hat keine Zellen -> dessen Fehlermeldung reicht
+    if (packCells < 1 || layerPlan(cfg, packCells, perRow) === null) return none(packCells / perRow, null);
+    layers = Math.ceil(packCells / perRow);
+  }
+  const P = cfg.parallel;
+  // Einzelpack ohne Gruppen (s < 1): Fehler der Aufteilung, den der Kern meldet – hier 1 je Lage und keine eigene Meldung
+  const rows = split.map((s) => Math.max(1, Math.ceil((s * P) / layers)));
+  const bad = split.findIndex((s, i) => s >= 1 && !fitsLayers(s * P, rows[i], layers, cfg.stacking));
+  if (bad >= 0) {
+    const cells = split[bad] * P;
+    const what = `${cells} Zellen (${split[bad]}S${P}P) lassen sich nicht auf ${layers} Lagen aufteilen`;
+    if (split.length === 1)
+      return none(
+        layers,
+        booster.layersManual
+          ? `Booster: ${what}.`
+          : `Booster: ${what} (gleiche Lagenzahl wie der Teilpack, an dem der Booster hängt).`,
+      );
+    return none(layers, `Booster ${String.fromCharCode(65 + bad)}: ${what}.`);
+  }
+  return { layers, packKey, packLabel, cellsPerRow: rows[0], perRow: rows, split, error: null };
 }
 
 /** Übersetzt den Formularzustand in die Fachkonfiguration. */
@@ -253,10 +295,17 @@ export function toBatteryConfig(s: ConfigState): BatteryConfig {
   }
   if (s.wideLayer === 'bottom') cfg.wideLayer = 'bottom';
   if (s.boosterEnabled) {
-    // Hauptpack-Aufteilung hängt nur von booster.series ab; Zellen je Lage folgen aus der Lagenzahl
-    const withBooster = { ...cfg, booster: { ...s.booster, cellsPerRow: 1 } };
-    const rows = boosterRows(withBooster, s.booster);
-    cfg.booster = { series: s.booster.series, cellsPerRow: rows.cellsPerRow ?? NaN, position: s.booster.position };
+    // Hauptpack-Aufteilung hängt nur von booster.series ab; Aufteilung und Zellen je Lage des Boosters folgen aus boosterRows
+    const base = { series: s.booster.series, position: s.booster.position };
+    const rows = boosterRows({ ...cfg, booster: { ...base, cellsPerRow: 1 } }, s.booster);
+    const b: BoosterSpec = { ...base, cellsPerRow: rows.cellsPerRow ?? NaN };
+    // nur mitgeben, was vom Standard des Kerns abweicht (Plan 07 §4.4)
+    if (s.booster.subPacks > 1) {
+      b.subPacks = s.booster.subPacks;
+      if (bridgeState(s.booster.series, s.booster.subPacks, s.booster.bridge).uneven) b.seriesSplit = rows.split;
+      if (rows.perRow && rows.perRow.some((m) => m !== rows.perRow![0])) b.cellsPerRowSplit = rows.perRow;
+    }
+    cfg.booster = b;
   }
   return cfg;
 }
@@ -265,15 +314,16 @@ export function toBatteryConfig(s: ConfigState): BatteryConfig {
 export function boosterInfo(s: ConfigState): BoosterRows | null {
   if (!s.boosterEnabled) return null;
   const cfg = toBatteryConfig(s);
-  return boosterRows({ ...cfg, booster: { ...s.booster, cellsPerRow: 1 } }, s.booster);
+  return boosterRows({ ...cfg, booster: { series: s.booster.series, position: s.booster.position, cellsPerRow: 1 } }, s.booster);
 }
 
-/** Folgefehler des Kerns, die bei einer Booster-Fehlermeldung (§3) nichts Neues sagen. */
-export const isBoosterRowIssue = (msg: string) => msg.startsWith('Booster: Zell');
+/** Folgefehler des Kerns, die bei einer Booster-Fehlermeldung (Plan 04 §3, Plan 07 §4.3) nichts Neues sagen. */
+export const isBoosterRowIssue = (msg: string) => msg.startsWith('Booster: Zell') || msg.startsWith('Booster-Einzelpack');
 
 export type Action =
   | { type: 'set'; patch: Partial<ConfigState> }
   | { type: 'bridge'; pos: BridgePos }
+  | { type: 'boosterBridge'; pos: BridgePos }
   | { type: 'cellType'; cellType: CellType }
   | { type: 'spacingMode'; mode: SpacingMode }
   | { type: 'fishpaper'; patch: Partial<FishpaperOptions> }
@@ -297,7 +347,7 @@ function normalize(s: ConfigState): ConfigState {
   if (!s.cellsPerRowManual && !s.cellsPerRowSplitManual && auto[0] >= 1) cellsPerRow = auto[0];
   if (!s.cellsPerRowSplitManual || cellsPerRowSplit.length !== n)
     cellsPerRowSplit = s.cellsPerRowManual ? Array.from({ length: n }, () => cellsPerRow) : auto;
-  return { ...s, seriesSplit, cellsPerRow, cellsPerRowSplit };
+  return { ...s, booster: { ...DEFAULT_BOOSTER, ...s.booster }, seriesSplit, cellsPerRow, cellsPerRowSplit };
 }
 
 export function reducer(state: ConfigState, action: Action): ConfigState {
@@ -308,6 +358,12 @@ export function reducer(state: ConfigState, action: Action): ConfigState {
       // Klick auf die natürliche Lage = automatisch, auf die andere = ausdrücklich (Plan 06 §4.2)
       const natural = bridgeState(mainSeries(state), state.subPacks, 'auto').natural;
       return normalize({ ...state, bridge: action.pos === natural ? 'auto' : action.pos });
+    }
+    case 'boosterBridge': {
+      // wie im Hauptpack: Klick auf die natürliche Lage = automatisch, auf die andere = ausdrücklich
+      const b = state.booster;
+      const natural = bridgeState(b.series, b.subPacks, 'auto').natural;
+      return normalize({ ...state, booster: { ...b, bridge: action.pos === natural ? 'auto' : action.pos } });
     }
     case 'cellType': {
       const ds = datasheetById(action.cellType);
@@ -378,6 +434,8 @@ export function mergeWithDefaults(raw: unknown): ConfigState {
   const numOrNull = (v: unknown) => (typeof v === 'number' ? v : null);
   const numArr = (v: unknown, d: number[]) => (Array.isArray(v) && v.every((x) => typeof x === 'number') ? v : d);
   const oneOf = <T extends string>(v: unknown, allowed: readonly T[], d: T): T => (allowed.includes(v as T) ? (v as T) : d);
+  const intIn = (v: unknown, min: number, max: number, d: number) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : d;
   const terminal = (v: unknown, dt: TerminalSpec): TerminalSpec => {
     const t = obj(v, dt);
     return { end: oneOf(t.end, ['V', 'H'], dt.end), side: oneOf(t.side, ['L', 'R'], dt.side) };
@@ -416,7 +474,13 @@ export function mergeWithDefaults(raw: unknown): ConfigState {
     holderRim: numOrNull(r.holderRim),
     mainMinus: terminal(r.mainMinus, d.mainMinus),
     mainPlus: terminal(r.mainPlus, d.mainPlus),
-    booster: { ...booster, position: oneOf(booster.position, ['plus', 'minus'], d.booster.position) },
+    booster: {
+      ...booster,
+      position: oneOf(booster.position, ['plus', 'minus'], d.booster.position),
+      subPacks: intIn(booster.subPacks, LIMITS.subPacks.min, LIMITS.subPacks.max, d.booster.subPacks),
+      bridge: oneOf(booster.bridge, ['auto', 'inner', 'outer'], d.booster.bridge),
+      layers: intIn(booster.layers, LAYER_LIMITS.min, LAYER_LIMITS.max, d.booster.layers),
+    },
     fishpaper: {
       ...fp,
       outlineFace: oneOf(fp.outlineFace, ['straight', 'tucked'], df.outlineFace),

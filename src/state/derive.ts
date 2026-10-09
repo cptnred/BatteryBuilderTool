@@ -53,6 +53,11 @@ export interface RowPlan {
   error: string | null;
 }
 
+/** Passen n Zellen bei perRow je Lage genau auf die Lagenzahl? Volle Lagen oder die unvollständige Lage (Plan 06 §3.1). */
+export function fitsLayers(n: number, perRow: number, layers: number, stacking: Stacking): boolean {
+  return n === perRow * layers || (stacking === 'honeycomb' && layers === 2 && n >= 3 && n === 2 * perRow - 1);
+}
+
 /** Zellen je Lage aus der Lagenzahl. Gültig sind volle Lagen oder die unvollständige Lage nach Plan 06 §3.1. */
 export function autoRows(split: number[], parallel: number, layers: number, stacking: Stacking): RowPlan {
   // Teilpack ohne Gruppen (s < 1): Fehler der Aufteilung, den der Kern meldet – hier 1 je Lage und keine eigene Meldung
@@ -62,7 +67,7 @@ export function autoRows(split: number[], parallel: number, layers: number, stac
     if (s < 1) return;
     const n = s * parallel;
     const m = perRow[i];
-    const ok = n === m * layers || (stacking === 'honeycomb' && layers === 2 && n >= 3 && n === 2 * m - 1);
+    const ok = fitsLayers(n, m, layers, stacking);
     if (!ok && error === null) error = `Teilpack ${i + 1}: ${n} Zellen lassen sich nicht auf ${layers} Lagen aufteilen.`;
   });
   return { perRow, error };

@@ -51,9 +51,16 @@ export interface SpacingSpec {
 export interface BoosterSpec {
   /** z. B. 2 bei 18S + 2S */
   series: number;
+  /** Zellen je Lage; bei mehreren Einzelpacks der Wert für alle ohne eigenen Eintrag in cellsPerRowSplit */
   cellsPerRow: number;
   /** hängt am Hauptplus- oder am Hauptminus-Ende */
   position: 'plus' | 'minus';
+  /** Anzahl Einzelpacks, Stirnseite 1 -> 2 (hintereinander in einem Gehäuse). Fehlt der Wert, gilt 1. */
+  subPacks?: number;
+  /** optional: S je Einzelpack. Fehlt der Wert oder passt die Länge nicht: gleichmäßig, Rest nach vorne */
+  seriesSplit?: number[];
+  /** optional: Zellen je Lage je Einzelpack (0 = cellsPerRow) */
+  cellsPerRowSplit?: number[];
 }
 
 export interface TerminalSpec {
@@ -149,10 +156,10 @@ export interface Strip {
 }
 
 export interface SubPack {
-  /** 'P0', 'P1', … (Hauptpack, vorne->hinten) oder 'BOOST' */
+  /** 'P0', 'P1', … (Hauptpack, vorne->hinten); Booster: 'BOOST' oder geteilt 'BOOST0', 'BOOST1', … */
   key: string;
   role: 'main' | 'booster';
-  /** physische Position vorne->hinten (Booster: -1) */
+  /** physische Position vorne->hinten; ungeteilter Booster: -1, Einzelpacks des Boosters: 0 … k−1 (Stirnseite 1 -> 2) */
   position: number;
   label: string;
   perRow: number;

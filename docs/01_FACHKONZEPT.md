@@ -135,6 +135,16 @@ Kosten ≥ 490 bedeuten eine Warnung: „Anschluss nicht direkt erreichbar, wird
 - Position des Boosters: am **Plus-Ende** (Standard) oder am Minus-Ende. Er sitzt in einem eigenen Gehäuse und ist per Kabel angebunden.
   In der Draufsicht wird er als separater, gestrichelter Block gezeichnet.
 - Das Systemplus bzw. -minus liegt dann am Booster. Die Knoten laufen durch, z. B. B18 → Booster → B20.
+- **Booster in Einzelpacks:** Der Booster kann aus 1–4 Einzelpacks bestehen. Sie stehen hintereinander in einem Gehäuse,
+  Stirnseite an Stirnseite, mit Isolierlage dazwischen – wie die Teilpacks des Hauptpacks. [BESTÄTIGT]
+- Die beiden Anschlüsse des Boosters (Kabel zum Hauptpack, System-Plus bzw. -Minus) liegen immer außen. Die Brückenlage
+  folgt deshalb wie im Hauptpack aus der Aufteilung: beide Einzelpacks ungerade → innen, sonst außen. Standard ist die
+  gleichmäßige Aufteilung; die andere Lage teilt (h+1) + (h−1) auf: 4S → 2 + 2 (außen) oder 3 + 1 (innen),
+  6S → 3 + 3 (innen) oder 4 + 2 (außen). Ein 2S-Booster als 1 + 1 hat die Brücke immer innen. [BESTÄTIGT]
+- Die Kette des Boosters läuft von Einzelpack A nach hinten und beginnt links an Stirnseite 1. Es gelten die Kosten aus §5,
+  ohne Wunsch für die Seite des Kettenendes; sie zählen nicht zu den Kosten des Hauptpacks.
+- Lagen des Boosters: Standard wie der Teilpack, an dem er hängt; wahlweise eine eigene Lagenzahl (1–6).
+- Bezeichnungen: „Booster A“, „Booster B“ …, Schlüssel `BOOST0`, `BOOST1` …; ein ungeteilter Booster bleibt `BOOST`.
 
 ## 7. Balancer-Abgriffe
 
@@ -163,3 +173,8 @@ Die Fixtures für **18S2P, 32S1P, 20S2P und 20S2P-Split** entsprechen exakt den 
 `30S1P_21700.json` stammt aus `src/core`, nicht aus `reference/demo.ts`: Die Referenz kennt keine unvollständigen
 Lagen. Der Nutzer hat das Ergebnis am Screenshot `docs/screenshots/30S1P.png` bestätigt (beide Teilpacks 8 oben + 7 unten,
 Minus oben rechts vorne, Plus oben rechts hinten, Brücke B15 innen links). [BESTÄTIGT]
+
+`20S2P_split_18S2P+2x1S2P_21700.json` und `20S2P_split_16S2P+2x2S2P_21700.json` stammen ebenfalls aus `src/core`: Die
+Referenz kennt keinen geteilten Booster. Der Nutzer hat beide Ergebnisse an den Screenshots
+`docs/screenshots/booster-2x1S2P.png` (1 + 1, Brücke B19 innen) und `docs/screenshots/booster-2x2S2P.png`
+(2 + 2, Brücke B18 außen) bestätigt. [BESTÄTIGT]

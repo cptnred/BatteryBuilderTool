@@ -1,9 +1,10 @@
 /** Zeichenmodelle (rein) und Kennzahlen – mit konkreten Zahlen. */
 import { describe, expect, it } from 'vitest';
+import type { BatteryConfig, BoosterSpec, SubPack } from '../src/core';
 import { DEFAULT_CONFIG, dimensions, nickelBom, nickelTotals, pitches, placeCells, solve, stripPosition } from '../src/core';
 import { assumptions } from '../src/view/assumptions';
 import { connectionOf } from '../src/view/connections';
-import { faceModel, stagger } from '../src/view/faceModel';
+import { faceModel, faceTitle, stagger } from '../src/view/faceModel';
 import { topModel } from '../src/view/topModel';
 
 const L18 = solve(DEFAULT_CONFIG);
@@ -185,5 +186,182 @@ describe('Annahmen-Text', () => {
     expect(t).toContain('Pack A läuft von rechts nach links und beginnt unten rechts');
     expect(t).toContain('Pack B läuft von links nach rechts und beginnt oben links');
     expect(t).toContain('Brücke B9 innen zwischen Pack A und Pack B, links.');
+  });
+});
+
+describe('Geteilter Booster (Plan 07 §6)', () => {
+  const A = solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 1, position: 'plus', subPacks: 2 } });
+  const B = solve({
+    ...DEFAULT_CONFIG,
+    series: 20,
+    cellsPerRow: 8,
+    booster: { series: 4, cellsPerRow: 2, position: 'plus', subPacks: 2 },
+  });
+  const C = solve({
+    ...DEFAULT_CONFIG,
+    series: 20,
+    cellsPerRow: 8,
+    booster: { series: 4, cellsPerRow: 3, position: 'plus', subPacks: 2, seriesSplit: [3, 1], cellsPerRowSplit: [3, 1] },
+  });
+  const [, mainB, a, b] = A.packs;
+  const texts = (p: SubPack) => p.strips.map((s) => connectionOf(A, p, s)?.text).filter(Boolean);
+
+  it('Anschlusstexte: Eingang, Brücke, Systemplus', () => {
+    expect(texts(a)).toEqual(['EINGANG von Pack B + (B18)', 'BRÜCKE → Booster B (B19)']);
+    expect(texts(b)).toEqual(['BRÜCKE ← Booster A (B19)', 'SYSTEM + (B20)']);
+    expect(texts(mainB).at(-1)).toBe('HAUPT + → Booster (B18)');
+  });
+
+  it('Titel der Stirnseiten', () => {
+    expect(faceTitle(a, 'V')).toBe('Booster A (1S2P) – Stirnseite 1 (Blick von außen)');
+    expect(faceTitle(b, 'H')).toBe('Booster B (1S2P) – Stirnseite 2 (Blick von außen)');
+  });
+
+  it('Annahmen: Brücke im Booster und Gehäuse-Satz', () => {
+    expect(assumptions(A)).toContain('Brücke B19 innen zwischen Booster A und Booster B, rechts.');
+    expect(assumptions(A)).toContain('Booster: 2 Einzelpacks hintereinander in einem Gehäuse, Isolierlage dazwischen.');
+    expect(assumptions(B)).toContain(
+      'Brücke B18 außen herum (rechts): gerade Gruppenzahl, Kabel von Booster A-Stirnseite 1 nach Booster B-Stirnseite 2.',
+    );
+    const single = solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 2, position: 'plus' } });
+    expect(assumptions(single).some((t) => t.startsWith('Booster: '))).toBe(false);
+  });
+
+  it('Draufsicht: Blöcke hintereinander, Brücke innen, Kabel am Anfang, SYSTEM-Fahne am Ende der Kette', () => {
+    const m = topModel(A);
+    const [, pb, ta, tb] = m.packs;
+    expect([ta.key, tb.key]).toEqual(['BOOST0', 'BOOST1']);
+    expect(ta.booster && tb.booster).toBe(true);
+    expect(ta.y).toBeGreaterThan(pb.y + pb.l);
+    expect(tb.y).toBeGreaterThan(ta.y + ta.l);
+    expect(tb.x + tb.w).toBeCloseTo(ta.x + ta.w, 9);
+    expect(m.links.filter((l) => l.kind === 'inner').map((l) => l.lines[0])).toEqual(['BRÜCKE B9', 'BRÜCKE B19']);
+    const cable = m.links.find((l) => l.kind === 'cable')!;
+    expect(cable.lines[0]).toBe('HAUPT + (B18) → Booster −');
+    // Kabel an der Vorderkante des ersten Einzelpacks, links (Start V/L)
+    expect(cable.points.at(-1)!.y).toBeCloseTo(ta.y, 9);
+    expect(cable.points.at(-1)!.x).toBeLessThan(ta.x + ta.w / 2);
+    // SYSTEM-Fahne an der Hinterkante des letzten Einzelpacks, links (Ende H/L)
+    const sys = m.flags.find((f) => f.text === 'SYSTEM + (B20)')!;
+    expect(sys.y1).toBeCloseTo(tb.y + tb.l, 9);
+    expect(sys.x).toBeLessThan(tb.x + tb.w / 2);
+    expect(m.flags.map((f) => f.text)).toEqual(['HAUPT −', 'SYSTEM + (B20)']);
+  });
+
+  it('Draufsicht: Brücke außen im Booster', () => {
+    const outer = topModel(B).links.filter((l) => l.kind === 'outer');
+    expect(outer.map((l) => l.lines[0])).toEqual(['BRÜCKE B8 (Kabel links außen)', 'BRÜCKE B18 (Kabel rechts außen)']);
+  });
+
+  it('Draufsicht: ungleich breite Einzelpacks bündig wie eingestellt; schmaler Block mit Kurzname', () => {
+    const right = topModel(C, 'right').packs.slice(2);
+    expect(right[0].x + right[0].w).toBeCloseTo(right[1].x + right[1].w, 9);
+    const left = topModel(C, 'left').packs.slice(2);
+    expect(left[0].x).toBeCloseTo(left[1].x, 9);
+    expect(right[0]).toMatchObject({ label: 'Booster A (3S2P)', compact: false });
+    expect(right[1]).toMatchObject({ label: 'Booster B', compact: true });
+    // Hauptpack und ungeteilter Booster bleiben, wie sie sind
+    const single = topModel(solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 2, position: 'plus' } }));
+    expect(single.packs.map((p) => [p.label, p.compact])).toEqual([
+      ['Pack A (vorne)', false],
+      ['Pack B (hinten)', false],
+      ['Booster 2S2P', false],
+    ]);
+  });
+
+  // Review Focus 5
+  it('Booster breiter als der Hauptpack, am Hauptminus, geteilt: alles liegt im Bild', () => {
+    const L = solve({
+      ...DEFAULT_CONFIG,
+      series: 12,
+      subPacks: 1,
+      cellsPerRow: 4,
+      booster: { series: 8, cellsPerRow: 8, position: 'minus', subPacks: 2 },
+    });
+    expect(L.packs.map((p) => p.key)).toEqual(['P0', 'BOOST0', 'BOOST1']);
+    for (const align of ['left', 'center', 'right'] as const) {
+      const m = topModel(L, align);
+      const vb = m.viewBox;
+      const inX = (x: number) => x >= vb.x - 1e-9 && x <= vb.x + vb.w + 1e-9;
+      const inY = (y: number) => y >= vb.y - 1e-9 && y <= vb.y + vb.h + 1e-9;
+      for (const p of m.packs) expect(inX(p.x) && inX(p.x + p.w) && inY(p.y) && inY(p.y + p.l), `${align} ${p.key}`).toBe(true);
+      for (const l of m.links) for (const q of l.points) expect(inX(q.x) && inY(q.y), `${align} ${l.lines[0]}`).toBe(true);
+      for (const f of m.flags) expect(inX(f.x) && inY(f.y1) && inY(f.y2), `${align} ${f.text}`).toBe(true);
+    }
+  });
+
+  it('Maße: Booster gesamt = Summe der Längen + Zwischenlage', () => {
+    const d = dimensions(A);
+    expect(d.booster!.length).toBeCloseTo(70.4 + 70.4 + 0.5, 9);
+    expect(d.booster!.width).toBeCloseTo(32.25, 6);
+    expect(d.booster!.height).toBeCloseTo(40.1928, 3);
+    expect(dimensions(L18).booster).toBeUndefined();
+  });
+});
+
+describe('Booster mit eigener Lagenzahl: Annahmen (Plan 07 §4.3)', () => {
+  const withBooster = (booster: BoosterSpec, patch: Partial<BatteryConfig> = {}) =>
+    assumptions(solve({ ...DEFAULT_CONFIG, series: 18 + booster.series, ...patch, booster }));
+  const deviating = (lines: string[]) => lines.filter((t) => t.includes('abweichend'));
+
+  it('3 Lagen am 2-lagigen Hauptpack: Spalten-Serpentine', () => {
+    const lines = withBooster({ series: 3, cellsPerRow: 2, position: 'plus' });
+    expect(lines).toContain('Verbindungen immer schräg (Zickzack), beginnend unten.');
+    expect(deviating(lines)).toEqual(['Booster abweichend: 3 Lagen, Verschaltung als Spalten-Serpentine (Spalte für Spalte).']);
+  });
+
+  it('1 Lage am 2-lagigen Hauptpack: Zellen nebeneinander; auch geteilt nur ein Satz', () => {
+    const one = ['Booster abweichend: 1 Lage, alle Zellen nebeneinander.'];
+    expect(deviating(withBooster({ series: 2, cellsPerRow: 4, position: 'plus' }))).toEqual(one);
+    expect(deviating(withBooster({ series: 2, cellsPerRow: 2, position: 'minus', subPacks: 2 }))).toEqual(one);
+  });
+
+  it('2 Lagen am 1-lagigen Hauptpack: Zickzack', () => {
+    const lines = withBooster({ series: 2, cellsPerRow: 2, position: 'plus' }, { cellsPerRow: 18 });
+    expect(deviating(lines)).toEqual(['Booster abweichend: 2 Lagen, Verbindungen schräg (Zickzack).']);
+  });
+
+  it('gleiche Lagenzahl oder Raster: kein Satz', () => {
+    expect(deviating(withBooster({ series: 2, cellsPerRow: 2, position: 'plus' }))).toEqual([]);
+    expect(deviating(withBooster({ series: 2, cellsPerRow: 1, position: 'plus', subPacks: 2 }))).toEqual([]);
+    expect(deviating(withBooster({ series: 2, cellsPerRow: 4, position: 'plus' }, { stacking: 'grid' }))).toEqual([]);
+  });
+});
+
+describe('Geteilter Booster am Hauptminus (Plan 07 §3.6 D, §6)', () => {
+  const D = solve({ ...DEFAULT_CONFIG, series: 20, booster: { series: 2, cellsPerRow: 1, position: 'minus', subPacks: 2 } });
+  const [p0, p1, a, b] = D.packs;
+  const texts = (p: SubPack) => p.strips.map((s) => connectionOf(D, p, s)?.text).filter(Boolean);
+
+  it('Anschlusstexte: Systemminus, Brücke, Ausgang', () => {
+    expect(texts(a)).toEqual(['SYSTEM − (B0)', 'BRÜCKE → Booster B (B1)']);
+    expect(texts(b)).toEqual(['BRÜCKE ← Booster A (B1)', 'AUSGANG → Pack A − (B2)']);
+    expect(texts(p0)[0]).toBe('HAUPT − ← Booster (B2)');
+    expect(texts(p1).at(-1)).toBe('HAUPT + (B20)');
+    expect(assumptions(D)).toContain('Booster per Kabel an B2 (am Hauptminus), eigenes Gehäuse.');
+  });
+
+  it('Draufsicht: Booster vor dem Hauptpack, Kabel am Ende der Booster-Kette, SYSTEM-Fahne an ihrem Anfang', () => {
+    const m = topModel(D);
+    const [pa, , ta, tb] = m.packs;
+    expect([ta.key, tb.key]).toEqual(['BOOST0', 'BOOST1']);
+    expect(ta.y).toBeLessThan(tb.y);
+    expect(tb.y + tb.l).toBeLessThan(pa.y);
+    expect(m.links.filter((l) => l.kind === 'inner').map((l) => l.lines[0])).toEqual(['BRÜCKE B1', 'BRÜCKE B11']);
+    const cable = m.links.find((l) => l.kind === 'cable')!;
+    expect(cable.lines[0]).toBe('HAUPT − (B2) ← Booster +');
+    expect(cable.role).toBe('minus');
+    // vom Hauptminus (Pack A, Vorderkante rechts) zur Hinterkante des letzten Einzelpacks, links (Ende H/L)
+    expect(cable.points[0].y).toBeCloseTo(pa.y, 9);
+    expect(cable.points[0].x).toBeGreaterThan(pa.x + pa.w / 2);
+    expect(cable.points.at(-1)!.y).toBeCloseTo(tb.y + tb.l, 9);
+    expect(cable.points.at(-1)!.x).toBeLessThan(tb.x + tb.w / 2);
+    // SYSTEM-Fahne an der Vorderkante des ersten Einzelpacks, links (Start V/L), Stiel nach vorne
+    const sys = m.flags.find((f) => f.text === 'SYSTEM − (B0)')!;
+    expect(sys).toMatchObject({ role: 'minus', anchor: 'start' });
+    expect(sys.y1).toBeCloseTo(ta.y, 9);
+    expect(sys.y2).toBeLessThan(sys.y1);
+    expect(sys.x).toBeLessThan(ta.x + ta.w / 2);
+    expect(m.flags.map((f) => f.text)).toEqual(['HAUPT +', 'SYSTEM − (B0)']);
   });
 });

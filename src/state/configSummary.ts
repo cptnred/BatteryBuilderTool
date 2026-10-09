@@ -41,6 +41,42 @@ export function bridgeSwitch(s: ConfigState): BridgeSwitch {
   };
 }
 
+/** Zustand des Schalters „Brücke im Booster“ (Plan 07 §4.6); dieselbe Regel wie im Hauptpack. */
+export function boosterBridgeSwitch(s: ConfigState): BridgeSwitch {
+  const b = s.booster;
+  if (b.subPacks !== 2) return { value: null, disabled: true, hint: 'nur bei 2 Einzelpacks wählbar' };
+  const st = bridgeState(b.series, b.subPacks, b.bridge);
+  const text = st.split.join(' + ');
+  const value = bridgePosOfSplit(st.split);
+  if (!st.selectable)
+    return {
+      value,
+      disabled: true,
+      hint:
+        b.series % 2 !== 0
+          ? `${b.series}S: ungerade Gruppenzahl, Brücke liegt außen um einen Einzelpack`
+          : `${b.series}S: zu wenige Gruppen für eine andere Aufteilung`,
+    };
+  return {
+    value,
+    disabled: false,
+    hint: st.uneven ? `ungleich ${text} – Einzelpacks unterschiedlich breit` : `gleichmäßig ${text}`,
+  };
+}
+
+/**
+ * Lagen und Zellen je Lage des Boosters als Text, z. B. „Booster: 2 Lagen wie Pack B (hinten) → 2 Zellen je Lage“.
+ * Gleiche Werte der Einzelpacks werden zusammengefasst („3 / 1“). null = kein Booster oder es geht nicht auf.
+ */
+export function boosterLayersText(s: ConfigState): string | null {
+  const info = boosterInfo(s);
+  if (!info || info.perRow === null) return null;
+  const layers = `${info.layers} ${info.layers === 1 ? 'Lage' : 'Lagen'}`;
+  const from = s.booster.layersManual ? '' : ` wie ${info.packLabel}`;
+  const rows = [...new Set(info.perRow)].join(' / ');
+  return `Booster: ${layers}${from} → ${rows} ${rows === '1' ? 'Zelle' : 'Zellen'} je Lage`;
+}
+
 interface LayerPart {
   layers: number;
   /** „9“ bei vollen Lagen, „8 + 7“ bei unvollständiger Lage */
@@ -179,8 +215,12 @@ export function rowValue(s: ConfigState, id: RowId): string {
       return s.spacingMode === 'spacer' ? 'Abstandhalter' : `Fishpaper ${fmt(s.paperThickness)} mm`;
     case 'cell':
       return `${fmt(s.cell.diameter)} × ${fmt(s.cell.length)} mm · ${fmt(s.cell.capacityAh)} Ah`;
-    case 'booster':
-      return s.boosterEnabled ? `+ ${s.booster.series}S am ${s.booster.position === 'plus' ? 'Hauptplus' : 'Hauptminus'}` : 'aus';
+    case 'booster': {
+      if (!s.boosterEnabled) return 'aus';
+      const b = s.booster;
+      const split = b.subPacks > 1 ? ` (${bridgeState(b.series, b.subPacks, b.bridge).split.join(' + ')})` : '';
+      return `+ ${b.series}S${split} am ${b.position === 'plus' ? 'Hauptplus' : 'Hauptminus'}`;
+    }
     case 'fishpaper':
       return rowModified(s, 'fishpaper') ? 'eigene Werte' : 'Standard';
   }
@@ -228,7 +268,8 @@ export function rowHasError(s: ConfigState, id: RowId, fieldErrorIds: readonly s
     case 'spacing':
       return s.spacingMode === 'spacer' && (s.gapRow === null || s.gapLayer === null || s.holderRim === null);
     case 'booster':
-      return (boosterInfo(s)?.error ?? null) !== null;
+      // zu wenige Gruppen für die Einzelpacks meldet der Kern; die Zeile trägt trotzdem die Fehlermarke
+      return (boosterInfo(s)?.error ?? null) !== null || (s.boosterEnabled && s.booster.subPacks > s.booster.series);
     default:
       return false;
   }

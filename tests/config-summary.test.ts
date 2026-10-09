@@ -6,6 +6,8 @@ import { DEFAULT_STATE, reducer, toBatteryConfig } from '../src/state/config';
 import {
   ROW_IDS,
   ROW_TITLES,
+  boosterBridgeSwitch,
+  boosterLayersText,
   bridgeSwitch,
   hasShortLayerRows,
   layerCountText,
@@ -66,7 +68,7 @@ describe('Brückenschalter (§5.2)', () => {
   it('Booster macht den Hauptpack ungerade, während „außen“ gewählt ist: inaktiv, kein Fehler', () => {
     const outer = reducer(preset('20S2P-split'), { type: 'bridge', pos: 'outer' });
     expect(outer.seriesSplit).toEqual([10, 8]);
-    const s = set(outer, { series: 20, booster: { series: 3, position: 'plus' } });
+    const s = set(outer, { series: 20, booster: { ...DEFAULT_STATE.booster, series: 3 } });
     expect(s.bridge).toBe('outer');
     expect(s.seriesSplit).toEqual([9, 8]);
     expect(bridgeSwitch(s)).toEqual({
@@ -248,5 +250,96 @@ describe('Zeilen der Liste „Aufbau“ (§5.3–5.5)', () => {
   it('Anschlüsse in zwei Teilen, damit die Oberfläche − und + einfärben kann', () => {
     expect(terminalTexts(DEFAULT_STATE)).toEqual({ minus: 'vorne rechts', plus: 'hinten rechts' });
     expect(terminalTexts(set(DEFAULT_STATE, { mainPlus: { end: 'V', side: 'L' } })).plus).toBe('vorne links');
+  });
+});
+
+describe('Geteilter Booster (Plan 07 §4.6)', () => {
+  const split = preset('20S2P-split');
+  const boost = (s: ConfigState, patch: Partial<ConfigState['booster']>) => set(s, { booster: { ...s.booster, ...patch } });
+  const errorsOf = (s: ConfigState) =>
+    solve(toBatteryConfig(s))
+      .issues.filter((i) => i.level === 'error')
+      .map((i) => i.msg);
+
+  it('Kurzwert der Zeile „Splitpack“', () => {
+    expect(rowValue(split, 'booster')).toBe('+ 2S am Hauptplus');
+    expect(rowValue(boost(split, { subPacks: 2 }), 'booster')).toBe('+ 2S (1 + 1) am Hauptplus');
+    const inner = boost(split, { series: 4, subPacks: 2, bridge: 'inner', position: 'minus' });
+    expect(rowValue(inner, 'booster')).toBe('+ 4S (3 + 1) am Hauptminus');
+  });
+
+  it('Schalter „Brücke im Booster“: jede Zeile der Tabelle', () => {
+    expect(boosterBridgeSwitch(boost(split, { series: 4, subPacks: 2 }))).toEqual({
+      value: 'outer',
+      disabled: false,
+      hint: 'gleichmäßig 2 + 2',
+    });
+    expect(boosterBridgeSwitch(boost(split, { series: 4, subPacks: 2, bridge: 'inner' }))).toEqual({
+      value: 'inner',
+      disabled: false,
+      hint: 'ungleich 3 + 1 – Einzelpacks unterschiedlich breit',
+    });
+    expect(boosterBridgeSwitch(boost(split, { series: 6, subPacks: 2 }))).toEqual({
+      value: 'inner',
+      disabled: false,
+      hint: 'gleichmäßig 3 + 3',
+    });
+    expect(boosterBridgeSwitch(boost(split, { series: 3, subPacks: 2 }))).toEqual({
+      value: 'outer',
+      disabled: true,
+      hint: '3S: ungerade Gruppenzahl, Brücke liegt außen um einen Einzelpack',
+    });
+    expect(boosterBridgeSwitch(boost(split, { subPacks: 2 }))).toEqual({
+      value: 'inner',
+      disabled: true,
+      hint: '2S: zu wenige Gruppen für eine andere Aufteilung',
+    });
+    expect(boosterBridgeSwitch(boost(split, { series: 4, subPacks: 3 }))).toEqual({
+      value: null,
+      disabled: true,
+      hint: 'nur bei 2 Einzelpacks wählbar',
+    });
+  });
+
+  it('Text zu den Lagen', () => {
+    expect(boosterLayersText(DEFAULT_STATE)).toBeNull();
+    expect(boosterLayersText(split)).toBe('Booster: 2 Lagen wie Pack B (hinten) → 2 Zellen je Lage');
+    expect(boosterLayersText(boost(split, { subPacks: 2 }))).toBe('Booster: 2 Lagen wie Pack B (hinten) → 1 Zelle je Lage');
+    expect(boosterLayersText(boost(split, { series: 4, subPacks: 2, bridge: 'inner' }))).toBe(
+      'Booster: 2 Lagen wie Pack B (hinten) → 3 / 1 Zellen je Lage',
+    );
+    expect(boosterLayersText(boost(split, { layersManual: true, layers: 1 }))).toBe('Booster: 1 Lage → 4 Zellen je Lage');
+    expect(boosterLayersText(boost(set(split, { parallel: 1 }), { subPacks: 2 }))).toBeNull();
+  });
+
+  it('„Zurück auf Standard“ setzt auch die neuen Felder zurück; Feld-IDs gehören zur Zeile', () => {
+    const s = boost(split, { subPacks: 2, layersManual: true, layers: 1 });
+    const back = set(s, resetRowPatch(s, 'booster'));
+    expect(back.boosterEnabled).toBe(false);
+    expect(back.booster).toEqual(DEFAULT_STATE.booster);
+    expect(rowOfField('booster.subPacks')).toBe('booster');
+    expect(rowOfField('booster.layers')).toBe('booster');
+  });
+
+  // Review Focus 4
+  it('ausdrückliche Wahl, danach 3 Einzelpacks oder ungerade Gruppenzahl: inaktiv, gleichmäßig, kein Fehler', () => {
+    const inner = reducer(boost(split, { series: 4, subPacks: 2 }), { type: 'boosterBridge', pos: 'inner' });
+    const three = boost(inner, { subPacks: 3 });
+    expect(three.booster.bridge).toBe('inner');
+    expect(boosterBridgeSwitch(three).disabled).toBe(true);
+    expect(rowValue(three, 'booster')).toBe('+ 4S (2 + 1 + 1) am Hauptplus');
+    expect(errorsOf(three)).toEqual([]);
+    const odd = set(boost(inner, { series: 3 }), { series: 21 });
+    expect(boosterBridgeSwitch(odd)).toMatchObject({ value: 'outer', disabled: true });
+    expect(rowValue(odd, 'booster')).toBe('+ 3S (2 + 1) am Hauptplus');
+    expect(errorsOf(odd)).toEqual([]);
+  });
+
+  // Review Focus 1
+  it('Booster-S kleiner als die Zahl der Einzelpacks: Fehlermarke an der Zeile, Meldung des Kerns', () => {
+    const s = set(boost(split, { subPacks: 2, series: 1 }), { series: 19 });
+    expect(rowHasError(s, 'booster', [])).toBe(true);
+    expect(errorsOf(s)).toEqual(['Booster: zu wenige Seriengruppen für die Anzahl der Einzelpacks.']);
+    expect(rowHasError(split, 'booster', [])).toBe(false);
   });
 });
