@@ -7,6 +7,7 @@ import { ConfigPanel } from './config/ConfigPanel';
 import { fmtFixed } from './format';
 import type { Highlight } from './highlight';
 import { HighlightContext } from './highlight';
+import { BatteryDataTab } from './tabs/BatteryDataTab';
 import { BomTab } from './tabs/BomTab';
 import { ExportTab } from './tabs/ExportTab';
 import { FishpaperTab } from './tabs/FishpaperTab';
@@ -17,6 +18,7 @@ import { useAppState, useFieldErrors } from './useAppState';
 const TABS = [
   { id: 'wiring', label: 'Verschaltung' },
   { id: 'fishpaper', label: 'Fishpaper' },
+  { id: 'data', label: 'Battery Data' },
   { id: 'bom', label: 'Stücklisten' },
   { id: 'export', label: 'Export' },
 ] as const;
@@ -143,6 +145,7 @@ export function App() {
                   />
                 )}
                 {tab === 'fishpaper' && <FishpaperTab layout={shown} state={state} dispatch={dispatch} />}
+                {tab === 'data' && <BatteryDataTab layout={shown} state={state} />}
                 {tab === 'bom' && <BomTab layout={shown} state={state} />}
                 {tab === 'export' && <ExportTab layout={shown} state={state} dispatch={dispatch} blocked={hasErrors} />}
               </div>

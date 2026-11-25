@@ -20,9 +20,6 @@ export function Legend({ layout }: { layout: Layout }) {
             <span className="key key--num">7</span> Zahl in der Zelle = Seriengruppe
           </li>
           <li>
-            <span className="key key--bk">Bk</span> Balancer-Abgriff (B0 = Hauptminus)
-          </li>
-          <li>
             <span className="key key--bridge" /> Brücke / Verbindung zum Nachbarpack
           </li>
           <li>

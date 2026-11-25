@@ -1,32 +1,22 @@
 import type { Layout } from '../../core';
-import { balanceTaps, dimensions, nickelBom, nickelTotals, stripPosition } from '../../core';
+import { dimensions, nickelBom, nickelTotals } from '../../core';
 import type { ConfigState } from '../../state/config';
-import { datasheetOf } from '../../state/config';
 import { fmtFixed, fmtNum } from '../format';
-import { highlightedNodes, useHighlight } from '../highlight';
-import { CellSpecsCard } from './CellSpecsCard';
+import { CablesCard } from './CablesCard';
 import { FishpaperBom } from './FishpaperBom';
-import { PackKpis } from './PackKpis';
 
-const KIND = { start: 'Anfang', series: 'Serie', end: 'Ende' } as const;
 const FACE = { V: 'vorne', H: 'hinten' } as const;
 
 export function BomTab({ layout, state }: { layout: Layout; state: ConfigState }) {
-  const { hl, setHl } = useHighlight();
-  const hn = highlightedNodes(hl);
   const dim = dimensions(layout);
   const cfg = layout.config;
-  const packBy = new Map(layout.packs.map((p) => [p.key, p]));
-  const taps = balanceTaps(layout);
   const mm = (v: number) => fmtFixed(v, 1);
   const boosterCount = layout.packs.filter((p) => p.role === 'booster').length;
 
   return (
     <div className="bom">
       <section className="card">
-        <h2>Kennzahlen</h2>
-        <PackKpis layout={layout} state={state} />
-        <h3>Maße (B × H × L, mm)</h3>
+        <h2>Maße (B × H × L, mm)</h2>
         <table className="tbl">
           <thead>
             <tr>
@@ -75,55 +65,7 @@ export function BomTab({ layout, state }: { layout: Layout; state: ConfigState }
         <p className="note">Blanke Zellen inkl. Nickel, ohne Fishpaper-Umwicklung und Schrumpfschlauch.</p>
       </section>
 
-      <CellSpecsCard ds={datasheetOf(state)} cell={state.cell} />
-
-      <section className="card">
-        <h2>Balancer-Abgriffe B0…B{layout.totalS}</h2>
-        <div className="tbl-wrap">
-          <table className="tbl tbl--taps">
-            <thead>
-              <tr>
-                <th scope="col">Knoten</th>
-                <th scope="col">Teilpack</th>
-                <th scope="col">Stirnseite</th>
-                <th scope="col">Streifen</th>
-                <th scope="col">Lage im Pack</th>
-              </tr>
-            </thead>
-            <tbody>
-              {taps.map((t) =>
-                t.spots.map((s, i) => {
-                  const p = packBy.get(s.pack)!;
-                  return (
-                    <tr
-                      key={`${t.node}-${i}`}
-                      className={(hn.has(t.node) ? 'is-hl' : '') + (i === 0 ? ' first' : '')}
-                      tabIndex={0}
-                      onPointerEnter={() => setHl({ kind: 'node', n: t.node })}
-                      onPointerLeave={() => setHl(null)}
-                      onFocus={() => setHl({ kind: 'node', n: t.node })}
-                      onBlur={() => setHl(null)}
-                    >
-                      {i === 0 ? (
-                        <th scope="row" rowSpan={t.spots.length}>
-                          {t.label}
-                        </th>
-                      ) : null}
-                      <td>{p.label}</td>
-                      <td>{FACE[s.face]}</td>
-                      <td>
-                        {KIND[s.kind]} · {s.cells.length} Zellen
-                      </td>
-                      <td>{stripPosition(p, s.cells)}</td>
-                    </tr>
-                  );
-                }),
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="note">Brückenknoten erscheinen an beiden Teilpacks, haben aber nur eine Nummer.</p>
-      </section>
+      <CablesCard state={state} />
 
       <section className="card">
         <h2>Nickelstreifen</h2>
